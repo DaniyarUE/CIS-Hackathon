@@ -176,7 +176,9 @@ class Bank:
 
     def statement(self, headers, body, now):
         s = self.session_for(headers)
-        acc = self.owned_account(s, body.get("account", ""))
+        acc = self.accounts.get(str(body.get("account", "")))
+        if not acc or acc["owner"] != s.customer_id:
+            raise BankError(403, "not your account")
         lines = [e.to_dict() for e in self.journal if e.from_account == acc["account_no"]]
         return {"account": acc["account_no"], "balance": acc["balance"], "lines": lines[-50:]}
 
