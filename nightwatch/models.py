@@ -35,7 +35,7 @@ class Event:
 
     ts: datetime
     identity_id: str
-    kind: str                         # "api_call" | "commit" | "deploy" | "db_query"
+    kind: str                         # "api_call" | "commit" | "deploy" | "db_query" | "config_change"
     target: str = ""                  # endpoint, repo/branch, service or table
     network: str | None = None
     scope_used: str | None = None
@@ -46,6 +46,8 @@ class Event:
     rows: int = 0
     diff: str = ""                    # unified diff for commits
     reviewed: bool | None = None      # did a second engineer approve it?
+    old_value: str | None = None      # config value before a config_change
+    new_value: str | None = None      # config value after a config_change
     description: str = ""
     id: str = ""
     # Ground truth used only by the simulator to show "what would have been lost".
@@ -93,4 +95,6 @@ class Decision:
             "fix_task": self.fix_task,
             "diff": e.diff,
             "network": e.network,
+            "old_value": e.old_value,
+            "new_value": e.new_value,
         }

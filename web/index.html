@@ -129,7 +129,7 @@
 const $ = (id) => document.getElementById(id);
 const aed = (n) => "AED " + Math.round(n).toLocaleString("en-US");
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const ICON = { api_call: "API", commit: "GIT", deploy: "CI", db_query: "DB" };
+const ICON = { api_call: "API", commit: "GIT", deploy: "CI", db_query: "DB", config_change: "CFG" };
 let source = null, decisions = {}, latencies = [], atRisk = null, pending = null;
 
 async function loadScenarios() {

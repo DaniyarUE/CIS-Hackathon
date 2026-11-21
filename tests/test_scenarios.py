@@ -1,5 +1,8 @@
 """End-to-end: every scenario gets the outcome we demo."""
+from datetime import datetime
+
 from nightwatch import Action, NightWatch
+from nightwatch.models import Event
 from nightwatch.simulator import SCENARIOS, demo_identities
 
 
@@ -51,3 +54,23 @@ def test_false_positive_release_restores_access():
 def test_decisions_are_fast():
     _, ds = run("drain")
     assert max(d.latency_ms for d in ds) < 50
+
+
+def test_config_tamper_blocked_rolled_back_and_follow_up_refused():
+    nw, ds = run("config")
+    disable, raise_limit = ds
+    assert disable.action is Action.BLOCK
+    assert "CONTROL_DISABLED" in {s.code for s in disable.signals}
+    assert nw.config_rollbacks["payments.daily_limit_enforced"] == "true"
+    assert nw.state["ops-admin"].revoked
+    assert raise_limit.action is Action.BLOCK
+    assert {"LIMIT_RAISED", "REVOKED"} <= {s.code for s in raise_limit.signals}
+
+
+def test_normal_config_change_is_allowed():
+    nw = NightWatch(demo_identities())
+    d = nw.process(Event(datetime(2026, 11, 21, 10, 30), "ops-admin", "config_change",
+                         target="payments.max_wire_aed", network="Bank-VPN", old_value="500000",
+                         new_value="550000", reviewed=True, description="Raise wire limit by 10%"))
+    assert d.action is Action.ALLOW
+    assert not d.signals

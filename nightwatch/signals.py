@@ -22,6 +22,10 @@ DETECTORS: list[Detector] = []
 PROTECTED_BRANCHES = ("main", "release")
 SENSITIVE_TABLES = {"customers_pii", "cards", "kyc_documents"}
 CASH_OUT_TYPES = {"non_custodial_wallet"}
+SAFETY_CONTROLS = {"payments.daily_limit_enforced", "payments.aml_screening",
+                   "auth.mfa_required", "audit.enabled"}
+OFF_VALUES = {"false", "off", "0", "no", "disabled", "none"}
+WIRE_LIMIT_KEY = "payments.max_wire_aed"
 
 CODE_WEIGHTS = {
     "SAFETY_CHECK_REMOVED": 30,
@@ -156,3 +160,30 @@ def unusual_egress(e: Event, ident: Identity, st: IdentityState) -> list[Signal]
         return [Signal("DATA_EGRESS", 25, f"Results are being written to {e.destination}, outside "
                        "the bank.", e.destination)]
     return []
+
+
+# ---------- production config ----------
+def _number(value: str | None) -> float | None:
+    try:
+        return float(str(value).replace(",", "").replace("_", ""))
+    except ValueError:
+        return None
+
+
+@detector
+def config_tamper(e: Event, ident: Identity, st: IdentityState) -> list[Signal]:
+    if e.kind != "config_change":
+        return []
+    found: list[Signal] = []
+    if e.target in SAFETY_CONTROLS and str(e.new_value).strip().lower() in OFF_VALUES:
+        found.append(Signal("CONTROL_DISABLED", 35, f"Switches off {e.target} in production: "
+                            "a payment safety control is disabled.", f"{e.target} = {e.new_value}"))
+    if e.target == WIRE_LIMIT_KEY:
+        old, new = _number(e.old_value), _number(e.new_value)
+        if old and new and new > 5 * old:
+            found.append(Signal("LIMIT_RAISED", 20, f"Raises the wire limit {new / old:.0f}x, from "
+                                f"AED {old:,.0f} to AED {new:,.0f}.", f"{e.target} = {e.new_value}"))
+    if found and e.reviewed is False:
+        found.append(Signal("UNAPPROVED_CHANGE", 15, "Changed a payment control with no approved "
+                            "change ticket."))
+    return found

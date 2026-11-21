@@ -25,6 +25,7 @@ class NightWatch:
         self.ledger = Ledger()
         self.held: dict[str, Event] = {}          # events waiting on the on-call engineer
         self.quarantined_commits: set[str] = set()
+        self.config_rollbacks: dict[str, str | None] = {}  # config key -> restored value
         self._ids = itertools.count(1)
         self._lock = threading.Lock()
 
@@ -124,6 +125,17 @@ class NightWatch:
                           "Notified the Data Protection Officer (breach clock started).",
                           "Paged the on-call security engineer."]
             return steps, None
+
+        if e.kind == "config_change":
+            if action is Action.CONTAIN:
+                return [f"Held the change to {e.target}: {e.old_value} stays live until a human approves.",
+                        "Paged the on-call security engineer."], None
+            st.revoked = True
+            self.config_rollbacks[e.target] = e.old_value
+            return [f"Rolled {e.target} back to its last good value ({e.old_value}).",
+                    f"Locked {ident.name}'s account and revoked all their sessions and tokens.",
+                    "Froze further production config changes until the incident is closed.",
+                    "Paged the on-call security engineer."], None
         return ["Paged the on-call security engineer."], None
 
     # ---------- the on-call engineer answers ----------

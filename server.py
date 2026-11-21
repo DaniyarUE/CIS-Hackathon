@@ -46,6 +46,8 @@ def _prompt_for(decision, engine: NightWatch) -> dict | None:
         "api_call": f"{fmt_aed(e.amount)} via {ident.name} from {e.network}",
         "commit": f"commit {e.id} to {e.target} by {ident.name}",
         "db_query": f"{e.rows:,} rows from {e.target} to {e.destination}",
+        "config_change": f"{ident.name} changed {e.target} from {e.old_value} to {e.new_value} "
+                         f"in production from {e.network}",
     }.get(e.kind, e.description)
     return {
         "event_id": e.id,
