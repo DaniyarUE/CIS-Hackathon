@@ -23,11 +23,12 @@ jobs:
         run: |
           approvers=$(gh api --paginate "repos/$REPO/pulls/$PR/reviews" --jq '.[]' | jq -rs \
             --arg author "$AUTHOR" --arg sha "$HEAD_SHA" '
-              map(select(.user.type == "User" and .user.login != $author and .state != "COMMENTED"))
+              map(select(.user.type == "User" and .user.login != $author and .state != "COMMENTED"
+                and (.author_association | IN("OWNER", "MEMBER", "COLLABORATOR"))))
               | group_by(.user.login) | map(max_by(.submitted_at))
               | map(select(.state == "APPROVED" and .commit_id == $sha)) | map(.user.login) | .[]')
           count=$(printf '%s\n' "$approvers" | grep -c . || true)
-          echo "Human approvals on $HEAD_SHA (excluding author $AUTHOR): $count"
+          echo "Approvals from repo collaborators on $HEAD_SHA (excluding author $AUTHOR): $count"
           printf '%s\n' "$approvers"
           if [ "$count" -lt 2 ]; then
             echo "::error::This PR needs 2 human approvals on the latest commit before merge (has $count)."
