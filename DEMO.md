@@ -1,7 +1,7 @@
 # 5-minute live demo (no Q&A)
 
 Before going on stage: `python3 server.py`, sign in to the console, click **Reset demo**, full screen.
-Have the GitHub PR from `attacks/malicious_pr.py` open in a second tab (see SETUP_DANIYAR.md step 4).
+Have two GitHub tabs open: **PR #6** (Devin's fix, merged) and **PR #7** (the blocked attack PR).
 
 **0:00 to 0:30, the hook (landing page).** "2 AM. Face ID passed, KYC passed, auth passed. And AED
 450,000 just left the bank through the API. Every check looked at the human. Nobody was watching the
@@ -22,16 +22,18 @@ amount alarm. Third one: fan-out pattern, held." Click the yellow row, **Confirm
 learned all five mule accounts." Click **Mule, second victim**: "Another customer pays one of them:
 blocked on the first payment. Nobody wrote that rule."
 
-**2:30 to 3:45, the bank's own bug, and Devin.** Click **Bank code bug (v2 API)**. "Now the hard one.
-A real customer, his own phone, his normal hours. Every behaviour check is green. But he put someone
-else's account number in the new v2 API. The bank's code accepted it." Point at the red row: "Night
-Watch checks the ledger after every request. Money left an account the caller doesn't own: invariant
-broken. Reversed before the response left the bank. It learned a gateway rule, and the retry is
-blocked." Click **Show regression test**: "It wrote this test from the real attack. It fails today."
-Click **Send fix to Devin**: "Devin gets the evidence, not the answer. It has to find the bug, fix it,
-and the PR only goes green when this test passes." Switch to the Devin session.
+**2:30 to 3:45, the bank's own bug, and Devin.** "Now the hard one. Behaviour checks can't see it: a
+real customer, his own phone, his normal hours. He puts someone else's account number into the bank's
+new v2 API." Click **Bank code bug (v2 API)**: the bank answers "not your account". "An hour ago this
+worked. The bank's code accepted it. Night Watch checks the ledger after every request, saw money leave
+an account the caller doesn't own, reversed it before the response left the bank, learned a gateway
+rule, wrote a failing regression test from the real attack, and sent Devin the evidence. Not the answer."
+Switch to the **PR #6** tab: "Devin found the root cause by itself, fixed it in the endpoint and in the
+bank's core so no future endpoint can repeat it, added tests, and the check went green. We merged it.
+That's what you just saw: the bank now refuses it on its own." Optional: show `oasis/tests/test_inc_0014.py`
+in the PR, the test Night Watch wrote.
 
-**3:45 to 4:30, code.** Switch to the GitHub PR tab: "Same idea for code. A pull request sneaks in a
+**3:45 to 4:30, code.** Switch to the **PR #7** tab: "Same idea for code. A pull request sneaks in a
 VIP bypass, a secret and a removed limit check. Our code guard reads the code's structure, function by
 function. Check failed, every line annotated, and the GitHub Action handed it to Devin itself."
 
