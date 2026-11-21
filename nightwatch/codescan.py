@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 SECRET_PATTERNS = [
     (re.compile(r"AKIA[0-9A-Z]{16}"), "AWS access key"),
-    (re.compile(r"sk_live_[0-9A-Za-z]{10,}"), "live payment API key"),
+    (re.compile(r"(sk|plk)_live_[0-9A-Za-z]{10,}"), "live payment API key"),
     (re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"), "private key"),
     (re.compile(r"(?i)(password|secret|api_key|token)\s*=\s*['\"][^'\"]{6,}['\"]"), "hard-coded credential"),
 ]
