@@ -55,6 +55,7 @@ SPEED = float(os.environ.get("NW_SPEED", "1.0"))
 # It is only honoured for requests from localhost. Set NW_DEMO=0 to turn it off.
 DEMO = os.environ.get("NW_DEMO", "1") == "1"
 MAX_BODY = 16 * 1024
+ATTACKS = {"normal", "stuffing", "takeover", "hijack", "mule", "mule-followup", "bola", "partner"}
 
 # ---------------------------------------------------------------- the live system
 _live_lock = threading.Lock()
@@ -270,10 +271,32 @@ class Handler(BaseHTTPRequestHandler):
             _devin_sessions[iid] = {k: v for k, v in res.items() if k != "task"}
             _guard._push({"type": "devin", "incident": iid, "result": _devin_sessions[iid]})
             return self._json(_devin_sessions[iid])
+        if p == "/api/live/attack":
+            return self._attack(str(body.get("name", "")))
         if p == "/api/live/reset":
             reset_live(bool(body.get("clear_memory")))
             return self._json({"ok": True})
         self._send(404, b"not found", "text/plain")
+
+    # ---------- attack lab: runs the real attack scripts against this server ----------
+    def _attack(self, name: str) -> None:
+        import subprocess
+        import sys
+        if name not in ATTACKS:
+            return self._json({"error": "unknown attack"}, 400)
+        env = {**os.environ, "NW_URL": f"http://127.0.0.1:{self.server.server_address[1]}", "ATTACK_PAUSE": "0.6",
+               "PYTHONUNBUFFERED": "1"}
+        env.pop("DEVIN_API_KEY", None)
+        proc = subprocess.Popen([sys.executable, str(ROOT / "attacks" / "run.py"), name], stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, text=True, env=env)
+        self._sse_headers()
+        try:
+            for line in proc.stdout:
+                self._sse("line", {"text": line.rstrip()})
+            proc.wait(timeout=60)
+            self._sse("done", {"code": proc.returncode})
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            proc.kill()
 
     # ---------- the bank, behind Night Watch ----------
     def _bank(self, method: str, body: dict) -> None:
