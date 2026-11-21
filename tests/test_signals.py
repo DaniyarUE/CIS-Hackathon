@@ -49,6 +49,8 @@ def test_config_tamper_flags_wire_limit_raised_over_5x():
     assert "LIMIT_RAISED" in codes(config_tamper(cfg("payments.max_wire_aed", "500000", "50000000"),
                                                  OPS, IdentityState()))
     assert not config_tamper(cfg("payments.max_wire_aed", "500000", "550000"), OPS, IdentityState())
+    assert "LIMIT_RAISED" in codes(config_tamper(cfg("payments.max_wire_aed", "0", "1000000"),
+                                                 OPS, IdentityState()))
 
 
 def test_config_tamper_flags_unapproved_only_with_another_finding():

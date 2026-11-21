@@ -180,9 +180,10 @@ def config_tamper(e: Event, ident: Identity, st: IdentityState) -> list[Signal]:
                             "a payment safety control is disabled.", f"{e.target} = {e.new_value}"))
     if e.target == WIRE_LIMIT_KEY:
         old, new = _number(e.old_value), _number(e.new_value)
-        if old and new and new > 5 * old:
-            found.append(Signal("LIMIT_RAISED", 20, f"Raises the wire limit {new / old:.0f}x, from "
-                                f"AED {old:,.0f} to AED {new:,.0f}.", f"{e.target} = {e.new_value}"))
+        if old is not None and new is not None and new > 5 * old:
+            ratio = f" ({new / old:.0f}x)" if old > 0 else ""
+            found.append(Signal("LIMIT_RAISED", 20, f"Raises the wire limit from AED {old:,.0f} to "
+                                f"AED {new:,.0f}{ratio}.", f"{e.target} = {e.new_value}"))
     if found and e.reviewed is False:
         found.append(Signal("UNAPPROVED_CHANGE", 15, "Changed a payment control with no approved "
                             "change ticket."))
