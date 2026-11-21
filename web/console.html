@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Night Watch console</title>
+<link rel="icon" href="/static/favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/nw.css">
+<style>
+  header { display: flex; align-items: center; gap: 16px; padding: 16px 0; flex-wrap: wrap; }
+  .hright { margin-left: auto; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .status { display: flex; align-items: center; gap: 9px; padding: 8px 15px; border-radius: 999px; font: 700 12.5px var(--mono);
+    letter-spacing: .8px; border: 1px solid rgba(52,211,153,.35); background: rgba(52,211,153,.08); color: var(--ok); }
+  .status i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; box-shadow: 0 0 10px currentColor; }
+  .status.attack { color: var(--bad); border-color: rgba(255,77,106,.5); background: rgba(255,77,106,.12); animation: throb 1s infinite; }
+  .status.held { color: var(--warn); border-color: rgba(251,191,36,.45); background: rgba(251,191,36,.10); }
+  @keyframes throb { 50% { box-shadow: 0 0 0 6px rgba(255,77,106,.08); } }
+  .clock { font: 700 20px var(--mono); }
+  .kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+  .kpi { padding: 14px 16px; }
+  .kpi .l { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); font-weight: 700; }
+  .kpi .v { font: 800 24px var(--mono); letter-spacing: -.5px; margin-top: 4px; }
+  .kpi .s { font-size: 12px; color: var(--dim); }
+  .grid { display: grid; grid-template-columns: 340px minmax(0, 1fr) 440px; gap: 14px; margin-bottom: 14px; }
+  .grid2 { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1fr); gap: 14px; margin-bottom: 28px; }
+  .tall { height: 600px; display: flex; flex-direction: column; }
+  .scroll { overflow: auto; flex: 1; min-height: 0; }
+  /* attack lab */
+  .atk { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 8px; margin-bottom: 12px; }
+  .atk button { text-align: left; padding: 9px 10px; border-radius: 11px; border: 1px solid var(--line2); background: var(--panel2);
+    color: var(--text); font: 600 12.5px var(--sans); cursor: pointer; }
+  .atk button small { display: block; color: var(--dim); font-weight: 500; font-size: 11px; margin-top: 2px; }
+  .atk button:hover { border-color: #3a4763; } .atk button.run { border-color: var(--accent); }
+  .atk button.good { border-color: rgba(52,211,153,.35); }
+  .term { background: #05080d; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font: 11.5px/1.6 var(--mono);
+    color: #b6bfd3; white-space: pre-wrap; word-break: break-word; }
+  .term .ok { color: var(--ok); } .term .bad { color: var(--bad); } .term .warn { color: var(--warn); } .term .dim { color: var(--dim); } .term .b { color: #fff; font-weight: 700; }
+  /* feed */
+  .ev { display: grid; grid-template-columns: 58px 78px minmax(0, 1fr) 96px; gap: 10px; align-items: center; padding: 10px 10px;
+    border-radius: 11px; border: 1px solid transparent; cursor: pointer; animation: slide .25s ease-out; }
+  .ev:hover { background: rgba(255,255,255,.025); } .ev.sel { border-color: var(--line2); background: var(--panel2); }
+  .ev .t { font: 12px var(--mono); color: var(--dim); }
+  .ev .what { min-width: 0; } .ev .what b { font-weight: 600; } .ev .what div { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ev .amt { text-align: right; font: 600 12.5px var(--mono); } .ev .amt small { display: block; color: var(--dim); font-weight: 400; font-size: 11px; }
+  @keyframes slide { from { opacity: 0; transform: translateY(-6px); } }
+  .empty { color: var(--dim); text-align: center; padding: 40px 10px; font-size: 13px; }
+  /* detail */
+  .dhead { display: flex; gap: 14px; align-items: center; margin-bottom: 12px; }
+  .ring { width: 74px; height: 74px; flex: none; }
+  .dtitle { font-weight: 700; font-size: 15px; } .dsub { color: var(--muted); font-size: 12.5px; }
+  .sig { display: grid; grid-template-columns: 44px 1fr; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
+  .sig .w { font: 700 12px var(--mono); color: var(--bad); text-align: right; padding-top: 1px; }
+  .sig .c { font: 700 11px var(--mono); color: var(--muted); letter-spacing: .4px; }
+  .sig .bar { height: 3px; border-radius: 3px; background: linear-gradient(90deg, var(--bad), var(--warn)); margin-top: 6px; }
+  .steps { margin: 6px 0 0; padding: 0; list-style: none; }
+  .steps li { padding: 6px 0 6px 22px; position: relative; font-size: 13px; }
+  .steps li:before { content: "✓"; position: absolute; left: 0; color: var(--ok); font-weight: 700; }
+  .sect { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); font-weight: 700; margin: 16px 0 4px; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  pre.code { background: #05080d; border: 1px solid var(--line); border-radius: 10px; padding: 10px; font: 11px/1.5 var(--mono);
+    max-height: 260px; overflow: auto; white-space: pre; color: #c9d1e3; }
+  .kv { display: grid; grid-template-columns: 110px 1fr; gap: 4px 10px; font-size: 12.5px; }
+  .kv span:nth-child(odd) { color: var(--dim); } .kv span { overflow-wrap: anywhere; }
+  /* ledger */
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th { text-align: left; color: var(--dim); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .8px; padding: 6px 8px; }
+  td { padding: 7px 8px; border-top: 1px solid var(--line); } td.n { text-align: right; font-family: var(--mono); }
+  tr.flash td { animation: flash 1.6s; } @keyframes flash { 0% { background: rgba(255,77,106,.25); } 100% { background: transparent; } }
+  tr.up td.n { color: var(--ok); }
+  .toggle { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; color: var(--muted); user-select: none; }
+  .sw { width: 34px; height: 19px; border-radius: 99px; background: var(--line2); position: relative; transition: background .2s; }
+  .sw:after { content: ""; position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%; background: #fff; transition: left .2s; }
+  .toggle.on .sw { background: var(--accent); } .toggle.on .sw:after { left: 17px; }
+  /* memory + devin */
+  .lesson { padding: 8px 0; border-top: 1px solid var(--line); font-size: 12.5px; }
+  .lesson .k { font: 700 10.5px var(--mono); color: var(--accent); letter-spacing: .5px; text-transform: uppercase; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 10px; }
+  .chip { font: 11px var(--mono); padding: 3px 8px; border-radius: 8px; background: rgba(255,77,106,.08); border: 1px solid rgba(255,77,106,.3); color: #ffb3c0; }
+  .chip.g { background: rgba(52,211,153,.07); border-color: rgba(52,211,153,.3); color: #a7f3d0; }
+  .chip.p { background: rgba(139,123,255,.1); border-color: rgba(139,123,255,.35); color: #cfc8ff; }
+  .dv { padding: 10px 0; border-top: 1px solid var(--line); font-size: 12.5px; }
+  .toast { position: fixed; right: 20px; bottom: 20px; max-width: 420px; z-index: 9; }
+  .toast div { background: var(--panel2); border: 1px solid var(--line2); border-radius: 12px; padding: 12px 14px; margin-top: 8px;
+    box-shadow: 0 10px 40px rgba(0,0,0,.5); font-size: 13px; animation: slide .2s; }
+  @media (max-width: 1280px) { .grid { grid-template-columns: minmax(0,1fr) minmax(0,1fr); } .grid > :last-child { grid-column: 1 / -1; } .grid2 { grid-template-columns: minmax(0,1fr); } .kpis { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 760px) { .grid { grid-template-columns: minmax(0,1fr); } .ev { grid-template-columns: 44px 70px minmax(0,1fr); } .ev .amt { grid-column: 3; text-align: left; } .kpis { grid-template-columns: 1fr 1fr; } .wrap { padding: 0 16px; } .tall { height: auto; max-height: 640px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="brand" href="/"><img src="/static/favicon.svg" alt=""><span class="logo">Night <span>Watch</span></span></a>
+    <div class="status" id="status"><i></i><span>ALL CLEAR</span></div>
+    <div class="hright">
+      <span class="pill devin" id="devinMode">DEVIN</span>
+      <a class="muted" href="/replay" title="Scripted scenarios: backdoor commit, config tamper, data exfiltration">Replays</a>
+      <button class="btn sm" id="resetBtn" title="Fresh bank and fresh memory for a rehearsal">Reset demo</button>
+      <span class="clock" id="clock">--:--:--</span>
+      <span class="muted" id="who"></span>
+      <button class="btn sm" id="logout">Sign out</button>
+    </div>
+  </header>
+
+  <div class="kpis">
+    <div class="card kpi"><div class="l">Money protected</div><div class="v" id="k_prot" style="color:var(--ok)">AED 0</div><div class="s">blocked or held before it moved</div></div>
+    <div class="card kpi"><div class="l">Reversed breaches</div><div class="v" id="k_rev">AED 0</div><div class="s" id="k_rev_s">bank code let it through, NW put it back</div></div>
+    <div class="card kpi"><div class="l">Attacks stopped</div><div class="v" id="k_blk">0</div><div class="s" id="k_blk_s">0 allowed normally</div></div>
+    <div class="card kpi"><div class="l">Open incidents</div><div class="v" id="k_inc" style="color:var(--warn)">0</div><div class="s">waiting for an analyst</div></div>
+    <div class="card kpi"><div class="l">Learned so far</div><div class="v" id="k_learn" style="color:var(--accent)">0</div><div class="s">rules, mules, hostile sources</div></div>
+    <div class="card kpi"><div class="l">Decision time</div><div class="v" id="k_ms">-</div><div class="s">median per request</div></div>
+  </div>
+
+  <div class="grid">
+    <div class="card tall">
+      <h3>Attack lab <span class="right dim">real HTTP calls to the bank</span></h3>
+      <div class="atk" id="atk"></div>
+      <div class="term scroll" id="term"><span class="dim">Pick an attack. Each one runs attacks/run.py against this server,
+the same script you can run from a terminal.</span></div>
+    </div>
+    <div class="card tall">
+      <h3>Live decisions <span class="right dim" id="feedCount">0 requests</span></h3>
+      <div class="scroll" id="feed"><div class="empty">Waiting for traffic. Run "A normal day" first.</div></div>
+    </div>
+    <div class="card tall">
+      <h3>Why <span class="right dim">every point of risk has a reason</span></h3>
+      <div class="scroll" id="detail"><div class="empty">Click any decision to see exactly why it was made and what Night Watch did.</div></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>Oasis Bank ledger <span class="right"><span class="toggle" id="mask" role="switch" aria-checked="false" tabindex="0"><span class="sw"></span>Show customer details</span></span></h3>
+      <div style="max-height:420px;overflow:auto"><table><thead><tr><th>Customer</th><th>IBAN</th><th style="text-align:right">Balance</th></tr></thead><tbody id="ledger"></tbody></table></div>
+    </div>
+    <div class="card">
+      <h3>What Night Watch learned <span class="right dim">kept after restart</span></h3>
+      <div id="memory"></div>
+    </div>
+    <div class="card">
+      <h3>Devin <span class="right dim">root-cause fixes</span></h3>
+      <div id="devin"></div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const ATTACKS = [
+  ["normal", "A normal day", "4 customers pay usual payees", "good"],
+  ["hijack", "2 AM stolen session", "token replay drains a retiree"],
+  ["takeover", "Phished password", "correct password, wrong place"],
+  ["stuffing", "Credential stuffing", "leaked passwords, proxy bot"],
+  ["mule", "Mule fan-out", "small payments to new payees"],
+  ["mule-followup", "Mule, second victim", "after you confirm the fan-out"],
+  ["bola", "Bank code bug (v2 API)", "pays himself from another account"],
+  ["partner", "Stolen partner key", "AED 450,000 to a crypto wallet"],
+];
+let CSRF = "", S = null, feed = [], sel = null, masked = true, prevBal = {}, devin = {}, devinLive = false, running = false;
+try { masked = localStorage.getItem("nw_unmask") !== "1"; } catch (e) {}
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const aed = (n) => "AED " + Math.round(n || 0).toLocaleString("en-US");
+const maskName = (n) => masked ? n.split(" ").map((w) => w[0] + "•••").join(" ") : n;
+const maskIban = (i) => !i ? "" : masked ? i.slice(0, 4) + " •••• " + i.slice(-4) : i.replace(/(.{4})/g, "$1 ").trim();
+const maskAmt = (n) => masked ? "AED •••,•••" : aed(n);
+
+async function api(path, body) {
+  const r = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json", "X-CSRF": CSRF }, body: JSON.stringify(body) } : {});
+  if (r.status === 401) { location.href = "/login"; throw new Error("login"); }
+  return r.json();
+}
+function toast(text) { const d = document.createElement("div"); d.textContent = text; $("toast").appendChild(d); setTimeout(() => d.remove(), 6000); }
+
+// ---------- attack lab ----------
+$("atk").innerHTML = ATTACKS.map(([id, t, s, c]) => `<button data-a="${id}" class="${c || ""}">${esc(t)}<small>${esc(s)}</small></button>`).join("");
+$("atk").addEventListener("click", async (e) => {
+  const b = e.target.closest("button"); if (!b || running) return;
+  running = true; b.classList.add("run");
+  const term = $("term"); term.innerHTML = "";
+  const r = await fetch("/api/live/attack", { method: "POST", headers: { "Content-Type": "application/json", "X-CSRF": CSRF }, body: JSON.stringify({ name: b.dataset.a }) });
+  const reader = r.body.getReader(), dec = new TextDecoder(); let buf = "";
+  while (true) {
+    const { value, done } = await reader.read(); if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let i; while ((i = buf.indexOf("\n\n")) >= 0) {
+      const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
+      const ev = (chunk.match(/^event: (.*)$/m) || [])[1], data = (chunk.match(/^data: (.*)$/m) || [])[1];
+      if (ev === "line") { const t = JSON.parse(data).text; const cls = /-> 20\d/.test(t) && !/202/.test(t) ? "ok" : /-> 202/.test(t) ? "warn" : /-> \d{3}/.test(t) ? "bad" : /because:/.test(t) ? "dim" : /^==/.test(t) ? "b" : "";
+        term.insertAdjacentHTML("beforeend", `<div class="${cls}">${esc(t)}</div>`); term.scrollTop = term.scrollHeight; }
+    }
+  }
+  running = false; b.classList.remove("run");
+});
+
+// ---------- feed + detail ----------
+const KIND = { login: "Login", transfer: "Payment", payout: "Partner payout", read: "Read" };
+function evRow(v) {
+  const top = v.breach ? "Ledger invariant broken: " + v.breach.invariants.join(", ") : (v.signals[0] ? v.signals[0].reason : "Matches this customer's normal behaviour.");
+  return `<div class="ev ${sel === v.id ? "sel" : ""}" data-id="${v.id}">
+    <span class="t">${esc(v.ts.slice(11, 16))}</span><span class="pill ${v.action}">${v.action}</span>
+    <div class="what"><b>${esc(KIND[v.kind] || v.kind)}</b> <span class="dim mono">${esc(v.principal || "?")}</span> <span class="dim">${esc(v.path.replace("/bank", ""))}</span><div>${esc(top)}</div></div>
+    <span class="amt">${v.amount ? aed(v.amount) : ""}<small>${v.status} · ${v.latency_ms} ms</small></span></div>`;
+}
+function renderFeed() {
+  $("feedCount").textContent = feed.length + " requests";
+  $("feed").innerHTML = feed.length ? feed.slice().reverse().map(evRow).join("") : '<div class="empty">Waiting for traffic. Run "A normal day" first.</div>';
+}
+$("feed").addEventListener("click", (e) => { const r = e.target.closest(".ev"); if (r) { sel = r.dataset.id; renderFeed(); renderDetail(); } });
+
+function ring(score, action) {
+  const c = action === "BLOCK" ? "var(--bad)" : action === "CONTAIN" ? "var(--warn)" : "var(--ok)", r = 30, L = 2 * Math.PI * r;
+  return `<svg class="ring" viewBox="0 0 74 74"><circle cx="37" cy="37" r="${r}" fill="none" stroke="var(--line2)" stroke-width="7"/>
+    <circle cx="37" cy="37" r="${r}" fill="none" stroke="${c}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${L * score / 100} ${L}" transform="rotate(-90 37 37)"/>
+    <text x="37" y="42" text-anchor="middle" font-family="JetBrains Mono" font-weight="800" font-size="17" fill="#fff">${score}</text></svg>`;
+}
+async function renderDetail() {
+  const v = feed.find((x) => x.id === sel); if (!v) return;
+  const inc = v.incident && S ? S.incidents.find((i) => i.id === v.incident) : null;
+  const b = v.body || {};
+  let h = `<div class="dhead">${ring(v.score, v.action)}<div><div><span class="pill ${v.action}">${v.action}</span> <span class="dtitle">${esc(KIND[v.kind] || v.kind)}${v.amount ? " · " + aed(v.amount) : ""}</span></div>
+    <div class="dsub">${esc(v.path)} · ${esc(v.principal || "unknown")} · HTTP ${v.status} · decided in ${v.latency_ms} ms</div></div></div>
+    <div class="kv"><span>From</span><span class="mono">${esc(v.ip)} · ${esc(v.network || "")}</span><span>Device</span><span class="mono">${esc(v.device)}</span>
+    ${b.to_iban ? `<span>To</span><span class="mono">${esc(maskIban(String(b.to_iban)))}</span>` : ""}${b.from_account ? `<span>From account</span><span class="mono">${esc(masked ? "••••" + String(b.from_account).slice(-4) : b.from_account)}</span>` : ""}
+    <span>Time</span><span class="mono">${esc(v.ts.replace("T", " "))}</span></div>`;
+  h += `<div class="sect">Signals (${v.signals.length})</div>` + (v.signals.length ? v.signals.map((s) => `<div class="sig"><span class="w">+${s.weight}</span><div><div class="c">${esc(s.code)}</div><div>${esc(s.reason)}</div><div class="bar" style="width:${Math.min(100, s.weight)}%"></div></div></div>`).join("") : '<div class="muted" style="font-size:13px">No risk signals. Matches what this customer normally does.</div>');
+  h += `<div class="sect">What Night Watch did</div><ul class="steps">${v.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>`;
+  if (inc) {
+    h += `<div class="sect">Incident ${esc(inc.id)} · ${esc(inc.status)}</div>`;
+    if (inc.code_path && inc.code_path.file) h += `<div class="kv"><span>Code path</span><span class="mono">${esc(inc.code_path.file)}:${inc.code_path.line} ${esc(inc.code_path.function)}()</span></div>`;
+    h += `<div class="actions">`;
+    if (inc.status === "open") h += `<button class="btn ok sm" data-r="1" data-i="${esc(inc.id)}">Confirm attack</button><button class="btn bad sm" data-r="0" data-i="${esc(inc.id)}">False positive, release</button>`;
+    if (inc.kind === "breach") { const d = devin[inc.id]; h += d && d.status === "sent" ? `<a class="btn devin sm" href="${esc(d.session)}" target="_blank" rel="noopener">Open Devin session</a>` : `<button class="btn devin sm" data-devin="${esc(inc.id)}">Send fix to Devin</button>`;
+      h += `<button class="btn sm" data-test="${esc(inc.id)}">Show regression test</button>`; }
+    h += `</div><div id="incx"></div>`;
+  }
+  $("detail").innerHTML = h;
+}
+$("detail").addEventListener("click", async (e) => {
+  const t = e.target.closest("button"); if (!t) return;
+  if (t.dataset.r) { t.disabled = true; const r = await api("/api/live/respond", { incident: t.dataset.i, confirmed: t.dataset.r === "1" }); (r.steps || []).forEach(toast); await refresh(); renderDetail(); }
+  if (t.dataset.devin) { t.disabled = true; t.textContent = "Sending to Devin..."; const r = await api("/api/live/devin", { incident: t.dataset.devin }); devin[t.dataset.devin] = r;
+    toast(r.status === "sent" ? "Devin session opened." : r.status === "dry_run" ? "Dry run: no DEVIN_API_KEY on this machine. The task is shown below." : "Devin error: " + r.error); renderDetail(); renderDevin(); if (r.status !== "sent") showTask(t.dataset.devin); }
+  if (t.dataset.test) { const inc = await api("/api/live/incident?id=" + encodeURIComponent(t.dataset.test)); $("incx").innerHTML = `<div class="sect">Generated from the real request</div><pre class="code">${esc(inc.regression_test)}</pre>`; }
+});
+async function showTask(id) { const inc = await api("/api/live/incident?id=" + encodeURIComponent(id)); $("incx").innerHTML = `<div class="sect">Task for Devin (evidence only)</div><pre class="code" style="white-space:pre-wrap">${esc(inc.devin_task)}</pre>`; }
+
+// ---------- ledger, memory, devin ----------
+function renderLedger() {
+  if (!S) return;
+  $("ledger").innerHTML = S.accounts.map((a) => {
+    const p = prevBal[a.iban], cls = p === undefined || p === a.balance ? "" : a.balance < p ? "flash" : "up";
+    return `<tr class="${cls}"><td>${esc(maskName(a.name))}${a.type === "partner_settlement" ? ' <span class="pill">partner</span>' : ""}</td><td class="mono">${esc(maskIban(a.iban))}</td><td class="n">${maskAmt(a.balance)}</td></tr>`;
+  }).join("");
+  S.accounts.forEach((a) => (prevBal[a.iban] = a.balance));
+}
+function renderMemory() {
+  if (!S) return; const m = S.memory;
+  const chips = (arr, c) => arr.length ? `<div class="chips">${arr.map((x) => `<span class="chip ${c || ""}">${esc(x)}</span>`).join("")}</div>` : '<div class="dim" style="font-size:12px;margin:4px 0 10px">none yet</div>';
+  const w = Object.entries(m.weight_mult).map(([k, v]) => `${k} ×${v}`);
+  $("memory").innerHTML = `<div class="sect" style="margin-top:0">Gateway rules learned from breaches</div>${chips(m.virtual_patches.map((p) => p.id + ": " + p.rule), "p")}
+    <div class="sect">Mule accounts</div>${chips(m.blocked_ibans.map((x) => maskIban(x)))}
+    <div class="sect">Hostile IPs and devices</div>${chips([...m.blocked_ips, ...m.blocked_devices])}
+    <div class="sect">Check weights tuned by analysts</div>${chips(w, "g")}
+    <div class="sect">Learning log</div>${m.lessons.slice().reverse().slice(0, 8).map((l) => `<div class="lesson"><span class="k">${esc(l.kind.replace("_", " "))}</span> <span class="dim mono">${esc(l.ts.slice(11, 16))}</span><div>${esc(l.text)}</div></div>`).join("") || '<div class="dim" style="font-size:12px">Nothing yet. Confirm or release an incident, or run the v2 API attack.</div>'}`;
+}
+function renderDevin() {
+  $("devinMode").textContent = devinLive ? "DEVIN LIVE" : "DEVIN DRY RUN";
+  const breaches = S ? S.incidents.filter((i) => i.kind === "breach") : [];
+  let h = `<div class="muted" style="font-size:12.5px;margin-bottom:6px">Night Watch contains in milliseconds. When the bank's own code was the hole, Devin gets the evidence and a failing test, never the answer.</div>`;
+  h += breaches.map((i) => { const d = devin[i.id];
+    return `<div class="dv"><b>${esc(i.id)}</b> <span class="dim">${esc(i.path)}</span><div class="dim mono" style="font-size:11.5px">${esc(i.code_path ? i.code_path.file + ":" + i.code_path.line + " " + i.code_path.function + "()" : "")}</div>
+      <div style="margin-top:6px">${d && d.status === "sent" ? `<a class="btn devin sm" href="${esc(d.session)}" target="_blank" rel="noopener">Open Devin session</a>` : d ? `<span class="pill">${esc(d.status)}</span>` : `<button class="btn devin sm" data-devin="${esc(i.id)}">Send fix to Devin</button>`}</div></div>`; }).join("");
+  h += `<div class="dv"><b>Pull request guard</b><div class="muted">Every PR is scanned by the AST code guard in GitHub Actions. A blocked PR is handed to Devin automatically for review and hardening.</div></div>
+    <div class="dv"><b>Built with Devin</b><div class="muted">Backdoor remediation and the config-tamper detector were Devin pull requests, reviewed and merged.</div></div>`;
+  $("devin").innerHTML = h;
+}
+$("devin").addEventListener("click", async (e) => { const t = e.target.closest("button[data-devin]"); if (!t) return; t.disabled = true;
+  const r = await api("/api/live/devin", { incident: t.dataset.devin }); devin[t.dataset.devin] = r;
+  toast(r.status === "sent" ? "Devin session opened." : r.status === "dry_run" ? "Dry run: set DEVIN_API_KEY in .env to send it for real." : "Devin error: " + r.error); renderDevin(); });
+
+function renderKpis() {
+  if (!S) return; const st = S.stats;
+  $("k_prot").textContent = aed(st.protected_aed); $("k_rev").textContent = aed(st.reversed_aed);
+  $("k_rev_s").textContent = st.breaches + " breach" + (st.breaches === 1 ? "" : "es") + " caught in the ledger";
+  $("k_blk").textContent = st.blocked + st.breaches; $("k_blk_s").textContent = st.allowed + " allowed normally";
+  const open = S.incidents.filter((i) => i.status === "open").length; $("k_inc").textContent = open;
+  const m = S.memory; $("k_learn").textContent = m.virtual_patches.length + m.blocked_ibans.length + m.blocked_ips.length + m.blocked_devices.length + Object.keys(m.weight_mult).length;
+  const ms = feed.map((v) => v.latency_ms).sort((a, b) => a - b); $("k_ms").textContent = ms.length ? ms[Math.floor(ms.length / 2)].toFixed(2) + " ms" : "-";
+  const last = feed[feed.length - 1], recent = last && last.action !== "ALLOW" && Date.now() - last._at < 8000;
+  const s = $("status"); s.className = "status" + (recent ? " attack" : open ? " held" : "");
+  s.querySelector("span").textContent = recent ? "UNDER ATTACK, CONTAINED" : open ? open + " INCIDENT" + (open > 1 ? "S" : "") + " TO REVIEW" : "ALL CLEAR";
+  document.body.classList.toggle("alarm", !!recent);
+}
+function renderAll() { renderKpis(); renderLedger(); renderMemory(); renderDevin(); renderFeed(); }
+async function refresh() { const snap = await api("/api/live/snapshot"); S = snap; devin = { ...snap.devin, ...devin }; devinLive = snap.devin_live;
+  feed = (snap.feed || []).map((v) => ({ ...v, _at: 0 })); renderAll(); }
+
+function connect() {
+  const es = new EventSource("/api/live/stream");
+  es.addEventListener("verdict", (e) => { const m = JSON.parse(e.data); m.verdict._at = Date.now(); feed.push(m.verdict); feed = feed.slice(-200); S = { ...S, ...m.snapshot };
+    if (!sel || m.verdict.action !== "ALLOW") { sel = m.verdict.id; renderDetail(); } renderAll(); });
+  es.addEventListener("lesson", (e) => { const m = JSON.parse(e.data); S = { ...S, ...m.snapshot }; renderAll(); });
+  es.addEventListener("devin", (e) => { const m = JSON.parse(e.data); devin[m.incident] = m.result; S = { ...S, ...m.snapshot }; renderAll(); });
+  es.addEventListener("reset", () => { prevBal = {}; sel = null; devin = {}; refresh(); $("detail").innerHTML = '<div class="empty">Fresh bank. Click any decision to see why.</div>'; });
+  es.onerror = () => { es.close(); setTimeout(connect, 2000); };
+}
+setInterval(() => { $("clock").textContent = new Date().toLocaleTimeString("en-GB"); renderKpis(); }, 1000);
+
+const mt = $("mask");
+function setMask() { mt.classList.toggle("on", !masked); mt.setAttribute("aria-checked", String(!masked)); renderLedger(); renderMemory(); renderDetail(); }
+mt.addEventListener("click", () => { masked = !masked; try { localStorage.setItem("nw_unmask", masked ? "0" : "1"); } catch (e) {} setMask(); });
+mt.addEventListener("keydown", (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); mt.click(); } });
+$("logout").onclick = async () => { await fetch("/auth/logout", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }); location.href = "/"; };
+$("resetBtn").onclick = async () => { if (running) return; await api("/api/live/reset", { clear_memory: true }); toast("Fresh bank, memory cleared."); };
+
+(async () => { const me = await (await fetch("/api/me")).json(); if (!me.user) { location.href = "/login"; return; } CSRF = me.csrf; $("who").textContent = me.user;
+  await refresh(); setMask(); connect(); })();
+</script>
+</body>
+</html>

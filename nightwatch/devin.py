@@ -47,13 +47,13 @@ def build_fix_task(event: Event, signals: list[Signal]) -> str:
     )
 
 
-def send_to_devin(task: str, timeout: float = 10) -> dict:
+def send_to_devin(task: str, timeout: float = 15, title: str = "Night Watch: remediate blocked commit") -> dict:
     key = os.environ.get("DEVIN_API_KEY")
     if not key:
         return {"status": "dry_run", "task": task}
     req = urllib.request.Request(
         os.environ.get("DEVIN_API_URL", DEVIN_API), method="POST",
-        data=json.dumps({"prompt": task, "title": "Night Watch: remediate blocked commit",
+        data=json.dumps({"prompt": task, "title": title,
                          "tags": ["night-watch", "security"]}).encode(),
         headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
     )

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Night Watch login</title>
+<link rel="icon" href="/static/favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/nw.css">
+<style>
+  .center { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+  .box { width: 100%; max-width: 420px; }
+  .box .card { padding: 30px; }
+  h1 { font-size: 24px; margin: 18px 0 4px; letter-spacing: -.5px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 16px 0 6px; font-weight: 600; }
+  .err { color: var(--bad); font-size: 13px; min-height: 20px; margin-top: 12px; }
+  .note { font-size: 12px; color: var(--dim); margin-top: 18px; line-height: 1.6; }
+  button.btn { width: 100%; justify-content: center; margin-top: 20px; padding: 13px; }
+</style>
+</head>
+<body>
+<div class="center"><div class="box">
+  <a class="brand" href="/"><img src="/static/favicon.svg" alt=""><span class="logo">Night <span>Watch</span></span></a>
+  <div class="card" style="margin-top:18px">
+    <h1>Security team sign in</h1>
+    <div class="muted">Oasis Bank security operations</div>
+    <form id="f" autocomplete="on">
+      <label for="u">Username</label>
+      <input id="u" name="username" autocomplete="username" value="analyst" required>
+      <label for="p">Password</label>
+      <input id="p" name="password" type="password" autocomplete="current-password" required autofocus>
+      <button class="btn primary" type="submit">Sign in</button>
+      <div class="err" id="err" role="alert"></div>
+    </form>
+    <div class="note">Passwords are checked against a PBKDF2 hash. Five wrong tries lock this address for 10 minutes.
+      The session cookie is HttpOnly and SameSite=Strict, and every console action needs a CSRF token.</div>
+  </div>
+</div></div>
+<script>
+document.getElementById("f").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const err = document.getElementById("err"); err.textContent = "";
+  const r = await fetch("/auth/login", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username: u.value, password: p.value }) });
+  if (r.ok) { location.href = "/console"; return; }
+  const j = await r.json().catch(() => ({}));
+  err.textContent = j.error || "Sign in failed.";
+  p.value = ""; p.focus();
+});
+</script>
+</body>
+</html>

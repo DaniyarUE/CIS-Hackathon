@@ -1,35 +1,43 @@
-# 5-minute demo script (live, no Q&A)
+# 5-minute live demo (no Q&A)
 
-Start the server first: `python3 server.py`, open http://localhost:8000, full screen.
+Before going on stage: `python3 server.py`, sign in to the console, click **Reset demo**, full screen.
+Have the GitHub PR from `attacks/malicious_pr.py` open in a second tab (see SETUP_DANIYAR.md step 4).
 
-**0:00 to 0:30, the hook.** "2 AM. Face ID passed, KYC passed, auth passed. And AED 450,000 just
-left the bank through the API. Every check said yes, because every check looks at the human.
-Nobody was watching the rails. That's Night Watch."
+**0:00 to 0:30, the hook (landing page).** "2 AM. Face ID passed, KYC passed, auth passed. And AED
+450,000 just left the bank through the API. Every check looked at the human. Nobody was watching the
+rails. That's Night Watch." Click **Open the console**.
 
-**0:30 to 1:00, a normal day.** Click *A normal day*. "Partner payouts, a reviewed deploy, nightly
-jobs. All green. A defense that cries wolf gets switched off, so zero false positives matters."
+**0:30 to 0:50, a normal day.** Attack lab, **A normal day**. "This is a real bank API with real
+customers' history. Four normal payments: all green. A defense that cries wolf gets switched off."
 
-**1:00 to 2:00, the 2 AM drain.** Click *2 AM rail drain*. Point at the first red card.
-"First payment, blocked in under a millisecond. Not after the account is empty: on payment one."
-Read two reasons from the right panel (180x normal value, non-custodial wallet, bulletproof host).
-"It revoked the key, quarantined the partner, held the money on the rail. Watch the bot keep
-trying." The follow-ups bounce. Click **Confirm incident**. "AED 512,000 protected. The human
-confirms. They don't have to be awake for it to work."
+**0:50 to 1:40, the 2 AM attacks.** Click **2 AM stolen session**. Point at the Why panel:
+"Her session was opened at home at 19:30. At 02:14 the token is used from an offshore server.
+Blocked in a tenth of a millisecond: stolen token, new device, 11 times her normal top payment,
+learned from her own 90 days of statements. The bot retries: the bank itself says 401, because the
+session is dead." Click **Stolen partner key**: "AED 450,000 to a crypto wallet: blocked on payment one,
+key revoked inside the bank, AED 512,000 protected."
 
-**2:00 to 3:30, the backdoor and Devin.** Click *Backdoor commit to payments*. "Now the scarier one:
-a phished engineer pushes to main at 01:40." Scroll to the diff: "Night Watch reads the code. It
-caught the deleted limit check, the hard-coded IBAN that skips every check, a secret, and data going
-to an outside server. Push rejected, and when CI tries to auto-deploy it, refused."
-Point at the Devin panel: "Containing is fast. Fixing is engineering. So Night Watch writes the fix
-task and hands it to Devin." Switch to the Devin session or PR tab: "Here is Devin's pull request.
-Checks restored, backdoor removed, regression tests added, and our own Night Watch CI guard passed
-on Devin's PR."
+**1:40 to 2:30, it learns.** Click **Mule fan-out**. "Small payments to new payees, under every
+amount alarm. Third one: fan-out pattern, held." Click the yellow row, **Confirm attack**. "It just
+learned all five mule accounts." Click **Mule, second victim**: "Another customer pays one of them:
+blocked on the first payment. Nobody wrote that rule."
 
-**3:30 to 4:15, data.** Click *Customer data exfiltration*. "2.4 million customer records heading to
-an outside bucket. Query killed, credentials revoked, egress blocked, DPO notified."
+**2:30 to 3:45, the bank's own bug, and Devin.** Click **Bank code bug (v2 API)**. "Now the hard one.
+A real customer, his own phone, his normal hours. Every behaviour check is green. But he put someone
+else's account number in the new v2 API. The bank's code accepted it." Point at the red row: "Night
+Watch checks the ledger after every request. Money left an account the caller doesn't own: invariant
+broken. Reversed before the response left the bank. It learned a gateway rule, and the retry is
+blocked." Click **Show regression test**: "It wrote this test from the real attack. It fails today."
+Click **Send fix to Devin**: "Devin gets the evidence, not the answer. It has to find the bug, fix it,
+and the PR only goes green when this test passes." Switch to the Devin session.
 
-**4:15 to 5:00, close.** "Zero dependencies, runs anywhere, every decision explained line by line,
-a human always in charge. And Devin didn't just fix the backdoor: it built the config-tamper
-detector you saw too. Night Watch: the bank's rails, protected while everyone sleeps."
+**3:45 to 4:30, code.** Switch to the GitHub PR tab: "Same idea for code. A pull request sneaks in a
+VIP bypass, a secret and a removed limit check. Our code guard reads the code's structure, function by
+function. Check failed, every line annotated, and the GitHub Action handed it to Devin itself."
 
-Tip: record the video with Cap (a sponsor). Use `NW_SPEED=1.5` if you're short on time.
+**4:30 to 5:00, close.** Point at **What Night Watch learned**. "Learns from data, from analysts and from
+breaches. Every decision explained. Enforced inside the bank. A human always in charge. And Devin does
+the engineering. Night Watch: the bank's rails, protected while everyone sleeps."
+
+Tip: record the video with Cap. If something fails live, the same attacks run from a terminal:
+`python3 attacks/run.py hijack`.

@@ -7,100 +7,92 @@ Built for The CIS Sprint x Devin, red track: *protect the big guy*.
 > At 2 AM Face ID passes, KYC passes, auth passes, and AED 450,000 still leaves
 > through the API. Every human check said yes. Night Watch is the thing that says no.
 
-Night Watch sits on the bank's own telemetry (API gateway, Git and CI/CD,
-database audit logs). It learns what each identity normally does, scores
-every event in well under a millisecond, and **contains the attack before a human
-wakes up**: revoke the key, hold the money on the rail, quarantine the commit,
-kill the query. Then it hands the permanent code fix to **Devin**, which opens a
-pull request with the fix and a regression test.
+Night Watch sits in front of a bank's API as its gateway, reads the bank's ledger, and guards
+its Git and CI. It learns what every customer and partner normally does from their own history,
+decides on every request in about a tenth of a millisecond, enforces the decision inside the bank
+(the key is revoked, the session is dead, the money does not move), and learns from every
+incident. When the bank's own code was the hole, it hands **Devin** the evidence and a failing
+regression test, and Devin opens the pull request with the real fix.
 
-```
- telemetry ──► detectors ──► score 0-100 ──► ALLOW / CONTAIN / BLOCK
- (API, Git,     (baseline      (explainable,      │
-  CI, DB)        per identity)  every point has   ├─► autonomous playbook (revoke, hold, quarantine, kill)
-                                a reason)         ├─► page on-call: confirm or release (human stays in charge)
-                                                  └─► Devin: fix the root cause, open a PR
-```
-
-## What it stops (the five demo scenarios)
-
-| Scenario | What happens | Night Watch response |
-|---|---|---|
-| **A normal day** | Partner payouts, a reviewed commit, nightly reconciliation | Everything allowed: zero false positives |
-| **2 AM rail drain** | Stolen partner API key from a bulletproof host sends AED 450,000 to a non-custodial wallet, then keeps draining | Blocked on the **first** payment in under 1 ms. Key revoked, partner quarantined, follow-ups refused. AED 512,000 protected |
-| **Backdoor commit** | Phished engineer account pushes to `main` at 01:40: deletes the limit and AML checks, adds a hard-coded IBAN bypass, a secret and an outside POST | Push rejected, commit quarantined, auto-deploy refused, account locked, **fix handed to Devin** |
-| **Data exfiltration** | Leaked analytics credential dumps 2.4M rows of `customers_pii` to an outside bucket | Query killed, credentials revoked, egress blocked, DPO notified. 3.3M records protected |
-| **Config tamper** | Insider `ops-admin` at 00:50 from a new network switches off `payments.daily_limit_enforced`, then raises `payments.max_wire_aed` from AED 500,000 to 50,000,000 | First change blocked and rolled back, account locked, the limit raise refused. 2 controls rolled back |
+The bank in this repo, **Oasis Bank**, is fictional. The defense is real: you attack it with real
+HTTP requests and watch it hold.
 
 ## Run it
 
-Needs only Python 3.10+. No dependencies.
+Python 3.10+, no dependencies.
 
 ```bash
-python3 server.py            # open http://localhost:8000
-NW_SPEED=2 python3 server.py # replay scenarios twice as fast
+python3 server.py              # prints the console login; open http://localhost:8000
+python3 attacks/run.py list    # in a second terminal
+python3 attacks/run.py hijack  # a real attack against the running bank
 ```
 
-Click a scenario. Click any event to see exactly why it was scored that way,
-with the offending diff lines highlighted. Answer the on-call page to confirm
-the incident or release a false positive.
+Put `NW_ADMIN_PASSWORD=...` and (optionally) `DEVIN_API_KEY=...` in a local `.env` (gitignored).
+Without a Devin key the hand-off runs in dry-run mode and shows the exact task it would send.
 
-### Live Devin handoff
+## What you can attack
 
-```bash
-cp .env.example .env          # then put your key in .env (gitignored)
-python3 server.py             # banner says "Devin handoff: LIVE"
+| Attack (`attacks/run.py`) | What it does | What Night Watch does |
+|---|---|---|
+| `normal` | 4 customers pay their usual payees | Allows all of them. Zero false positives |
+| `hijack` | Malware steals a retiree's session; 02:14 it is used from an offshore server to send AED 39,500 | Blocks in ~0.1 ms (token replay, new device, risky network, 11x her normal top payment), kills every session; the retry gets 401 from the bank itself |
+| `takeover` | Phished password used at 02:10 from an offshore server | The password is right, so Night Watch lets the bank check it, then destroys the token before it reaches the attacker and demands step-up |
+| `stuffing` | Leaked password list tried against many customers from a proxy | After 3 customers fail from one IP, the IP is blocked bank-wide and remembered |
+| `mule` | Malware on a customer's own laptop sends AED 4,800 to five brand-new payees | The third payment trips *fan-out* and is held; confirming teaches Night Watch all five mule accounts |
+| `mule-followup` | Another customer is tricked into paying one of those mules | Blocked on the first payment, because Night Watch learned the mule |
+| `bola` | A customer abuses the new v2 transfer API to pay himself out of someone else's account. Every behaviour check is normal | The bank's code accepts it. Night Watch's ledger check catches the broken ownership invariant, reverses the money before the response leaves, learns a gateway rule that blocks the retry, writes a failing regression test, and hands Devin the root-cause fix |
+| `partner` | The original 2 AM case: stolen partner API key, AED 450,000 to a crypto wallet | Blocked on payment one; the key is revoked inside the bank; follow-ups refused |
+| `attacks/malicious_pr.py` | A pull request that slips a VIP bypass, a secret and a removed limit check into the bank | The GitHub check fails with line annotations and hands the PR to Devin |
+
+## How it works
+
+See [HOW_IT_WORKS.md](HOW_IT_WORKS.md) for the full logic, every detector and weight, the three
+learning loops, the invariants, and how Devin is used. Short version:
+
 ```
-
-With a key, the backdoor scenario opens a real Devin session through
-`POST https://api.devin.ai/v1/sessions` and the dashboard links to it.
-Without a key it runs in dry-run mode and shows the exact task it would send.
+request ─► context (who, device, IP, country, time)
+        ─► score vs. profile learned from this customer's 90-day history + what it has learned
+        ─► ALLOW ─► bank ─► ledger invariants hold? ─► yes: learn from it
+        │                                          └─► no: BREACH ─► reverse money, learn gateway rule,
+        │                                                            write failing test, hand to Devin
+        ├► CONTAIN ─► held (or step-up for logins), analyst confirms or releases ─► learns either way
+        └► BLOCK ─► 403, session / key revoked inside the bank, incident opened
+```
 
 ## Devin in this project
 
-Devin is used in three ways. See [DEVIN.md](DEVIN.md) for the prompts and links.
-
-1. **In the product:** Night Watch contains in milliseconds; Devin does the
-   slower, permanent fix (`nightwatch/devin.py`).
-2. **The proof:** `demo_bank/` is a deliberately vulnerable payments service
-   holding the real backdoor. Devin's PR fixes it, and the Night Watch CI
-   guard checks Devin's own PR.
-3. **Built with Devin:** a new detector and scenario were built by Devin from a
-   single prompt.
-
-## CI code guard
-
-`.github/workflows/nightwatch.yml` runs the tests and scans every pull request's
-diff to the bank service. A PR that removes a safety check, adds a bypass,
-commits a secret or sends data outside fails the check.
-
-```bash
-git diff main...HEAD -- demo_bank/payments | python3 -m nightwatch.scan
-```
+1. **Live breaches:** the console sends an evidence-only task plus a failing regression test to Devin
+   through the Devin API (`nightwatch/guard.py`, `nightwatch/devin.py`).
+2. **Blocked pull requests:** the GitHub Action calls Devin itself when the code guard blocks a PR
+   (`nightwatch/devin_ci.py`, `.github/workflows/nightwatch.yml`).
+3. **Built with Devin:** the original backdoor fix and the config-tamper detector are Devin PRs (#1 to #3).
 
 ## Tests
 
 ```bash
-python3 -m pytest -q tests demo_bank/tests
+python3 -m pytest -q
 ```
 
 ## Code map
 
 | Path | What it is |
 |---|---|
-| `nightwatch/signals.py` | Detectors. Add one with `@detector`; it is picked up automatically |
-| `nightwatch/codescan.py` | Diff analysis: removed safety checks, backdoors, secrets, egress, audit removal |
-| `nightwatch/engine.py` | Scoring, decisions, autonomous playbooks, human confirm or release |
-| `nightwatch/devin.py` | Writes the remediation task and opens the Devin session |
-| `nightwatch/simulator.py` | The five scenarios (all identities, hosts and wallets are fictional) |
-| `server.py`, `web/index.html` | Zero-dependency server and live dashboard (Server-Sent Events) |
-| `demo_bank/` | Deliberately vulnerable service for the remediation demo. Never deploy |
+| `oasis/bank.py` | Oasis Bank's API: login, accounts, statements, transfers (v1 and v2), partner payouts, journal |
+| `oasis/data/generate.py` | Generates the 12 fictional customers and 90 days of statements (`CUSTOMERS.md` is the readable copy) |
+| `nightwatch/guard.py` | The live gateway: scoring, enforcement, invariants, virtual patches, incidents, Devin tasks, learning |
+| `nightwatch/baseline.py` | Profiles learned from history and updated online |
+| `nightwatch/memory.py` | What Night Watch learned, persisted to `var/memory.json` |
+| `nightwatch/astscan.py`, `scan.py` | The AST code guard and its CI entry point |
+| `nightwatch/devin.py`, `devin_ci.py` | Devin API hand-off from the console and from CI |
+| `attacks/` | Real attack scripts and the malicious pull request |
+| `server.py`, `web/` | Landing page, analyst login, live console; `/replay` keeps the original scripted scenarios |
+| `nightwatch/engine.py`, `simulator.py`, `demo_bank/` | The original v1 engine and scenarios (commit backdoor, config tamper, data exfiltration) |
 
-## Honest limits and next steps
+## Honest limits
 
-- Telemetry is simulated. In production the same detectors read API gateway logs,
-  GitHub webhooks and database audit streams.
-- Scoring is transparent, weighted rules on per-identity baselines, chosen so every
-  decision can be explained to a regulator. A learned model can sit on top.
-- Next: auto-learn baselines from history, shadow mode before enforcing, and
-  bank-wide sharing of blocked networks and wallets.
+- The bank and the IP intelligence table are fictional and in-process; in production Night Watch would be a
+  reverse proxy in front of the core banking API and would read a real threat feed.
+- Profiles are statistical (medians, percentiles, frequencies), not a neural model, on purpose:
+  every decision must be explainable to a regulator.
+- Demo mode lets scripts on the same machine set their apparent IP (`X-Forwarded-For`) and clock
+  (`X-Demo-Time`) so a 2 AM attack can be shown at 4:30 PM. Only honoured from localhost; `NW_DEMO=0` turns it off.

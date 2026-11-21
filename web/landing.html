@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Night Watch</title>
+<meta name="description" content="Autonomous defense for a bank's code, data and payment rails.">
+<link rel="icon" href="/static/favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/nw.css">
+<style>
+  nav { display: flex; align-items: center; gap: 24px; padding: 22px 0; }
+  nav .links { margin-left: auto; display: flex; gap: 22px; align-items: center; }
+  nav .links a { color: var(--muted); font-weight: 500; }
+  .hero { display: grid; grid-template-columns: 1.1fr .9fr; gap: 48px; align-items: center; padding: 56px 0 40px; }
+  .eyebrow { font: 700 12px var(--mono); letter-spacing: 2px; color: var(--accent); text-transform: uppercase; }
+  h1 { font-size: clamp(40px, 5.4vw, 72px); line-height: 1.02; letter-spacing: -2px; margin: 14px 0 20px; font-weight: 800; }
+  .lead { font-size: 19px; color: var(--muted); max-width: 620px; margin: 0 0 30px; }
+  .cta { display: flex; gap: 12px; flex-wrap: wrap; }
+  .term { background: #05080d; border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; font: 12.5px/1.75 var(--mono);
+    box-shadow: 0 30px 80px rgba(0,0,0,.5), 0 0 0 1px rgba(139,123,255,.06); }
+  .term .bar { display: flex; gap: 6px; margin-bottom: 12px; } .term .bar i { width: 10px; height: 10px; border-radius: 50%; background: #2a3549; }
+  .t-ok { color: var(--ok); } .t-bad { color: var(--bad); } .t-warn { color: var(--warn); } .t-dim { color: var(--dim); } .t-devin { color: var(--devin); }
+  section { padding: 54px 0; }
+  h2 { font-size: 34px; letter-spacing: -1px; margin: 0 0 10px; }
+  .sub { color: var(--muted); font-size: 16px; max-width: 760px; margin: 0 0 30px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .grid5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  .step { position: relative; }
+  .step .n { font: 700 12px var(--mono); color: var(--accent); }
+  .step h4, .feat h4 { margin: 6px 0 6px; font-size: 16px; }
+  .step p, .feat p { margin: 0; color: var(--muted); font-size: 13.5px; }
+  .feat .ic { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; font-size: 18px;
+    background: rgba(139,123,255,.12); border: 1px solid rgba(139,123,255,.3); margin-bottom: 10px; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .stat b { display: block; font: 800 34px var(--mono); letter-spacing: -1px; }
+  .stat span { color: var(--muted); font-size: 13px; }
+  .devin { border-color: rgba(45,212,191,.35); background: linear-gradient(180deg, rgba(45,212,191,.07), rgba(15,20,30,.9)); }
+  footer { border-top: 1px solid var(--line); padding: 26px 0 40px; color: var(--dim); font-size: 13px; display: flex; gap: 20px; flex-wrap: wrap; }
+  @media (max-width: 980px) { .hero, .grid3, .stats { grid-template-columns: 1fr; } .grid5 { grid-template-columns: 1fr 1fr; } nav .links a.hide { display: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <a class="brand" href="/"><img src="/static/favicon.svg" alt=""><span class="logo">Night <span>Watch</span></span></a>
+    <div class="links">
+      <a class="hide" href="#how">How it works</a>
+      <a class="hide" href="#real">What's real</a>
+      <a class="hide" href="#devin">Devin</a>
+      <a class="btn primary" href="/login">Security team login</a>
+    </div>
+  </nav>
+
+  <div class="hero">
+    <div>
+      <div class="eyebrow">Autonomous defense for banking rails</div>
+      <h1>Everyone is asleep.<br><span class="grad">Night Watch isn't.</span></h1>
+      <p class="lead">At 2 AM Face ID passes, KYC passes, auth passes, and AED 450,000 still leaves through the API.
+        Every check looked at the human. Night Watch watches the rails: every API call, payment, login and code change,
+        decided in under a millisecond, explained line by line, with the permanent fix handed to Devin.</p>
+      <div class="cta">
+        <a class="btn primary" href="/login">Open the console</a>
+        <a class="btn" href="#how">See how it works</a>
+      </div>
+    </div>
+    <div class="term" aria-label="Example of Night Watch output">
+      <div class="bar"><i></i><i></i><i></i></div>
+      <div class="t-dim">$ python3 attacks/run.py hijack</div>
+      <div>02:14 stolen session, offshore server, AED 39,500</div>
+      <div class="t-bad">-> 403 BLOCK risk 100 in 0.15 ms</div>
+      <div class="t-dim">&nbsp;&nbsp; token opened on dev-d1ace13b, now used from 203.0.113.7</div>
+      <div class="t-dim">&nbsp;&nbsp; 11x this customer's normal top payment</div>
+      <div class="t-dim">$ python3 attacks/run.py bola</div>
+      <div class="t-warn">ledger invariant OWNERSHIP broken by transfer_v2()</div>
+      <div class="t-ok">reversed AED 4,900 before the response left the bank</div>
+      <div class="t-ok">learned VP-001: retry refused at the gateway</div>
+      <div class="t-devin">regression test written, root-cause fix handed to Devin</div>
+    </div>
+  </div>
+
+  <section id="how">
+    <h2>How it works</h2>
+    <p class="sub">Night Watch sits in front of the bank's API as its gateway and reads its ledger, its Git and its CI.
+      It never needs the attacker to make a mistake the human checks can see.</p>
+    <div class="grid5">
+      <div class="card step"><div class="n">01</div><h4>Detect</h4><p>Scores each request against a profile learned from that customer's own 90-day history.</p></div>
+      <div class="card step"><div class="n">02</div><h4>Decide</h4><p>Allow, hold for a human, or block. Every point of risk has a reason a regulator can read.</p></div>
+      <div class="card step"><div class="n">03</div><h4>Contain</h4><p>Kill the session, revoke the API key, refuse the payment. Enforced in the bank, not on a slide.</p></div>
+      <div class="card step"><div class="n">04</div><h4>Learn</h4><p>From analysts' answers and from breaches: mule accounts, hostile networks, new gateway rules.</p></div>
+      <div class="card step"><div class="n">05</div><h4>Fix with Devin</h4><p>When the bank's own code was the hole, Devin gets the evidence and a failing test, and opens the PR.</p></div>
+    </div>
+  </section>
+
+  <section id="real">
+    <h2>What's real in this demo</h2>
+    <p class="sub">The bank is fictional. The defense is not: you can attack it from a terminal and watch it hold.</p>
+    <div class="grid3">
+      <div class="card feat"><div class="ic">🏦</div><h4>A live bank API</h4><p>Oasis Bank: 12 customers, IBANs, balances and 1,920 statement lines. Blocked means a real 403 and money that did not move.</p></div>
+      <div class="card feat"><div class="ic">🧠</div><h4>Learned behaviour</h4><p>Normal amounts, payees, hours, devices and countries come from history and keep updating with every allowed payment.</p></div>
+      <div class="card feat"><div class="ic">⚖️</div><h4>Ledger invariants</h4><p>After every request it checks the rules that must always hold. A violation means the bank's code has a bug, so it reverses the money.</p></div>
+      <div class="card feat"><div class="ic">🛡️</div><h4>Virtual patches</h4><p>A breach becomes a gateway rule in milliseconds, aimed at the exact request field that carried the attack.</p></div>
+      <div class="card feat"><div class="ic">🔍</div><h4>Code guard that reads code</h4><p>An AST scanner compares every function before and after a pull request: removed checks, bypasses, secrets, egress.</p></div>
+      <div class="card feat"><div class="ic">👤</div><h4>A human stays in charge</h4><p>Analysts confirm or release. Each answer teaches it: blocklists grow, weights shift, false positives stop repeating.</p></div>
+    </div>
+  </section>
+
+  <section id="devin">
+    <div class="card devin" style="padding:28px">
+      <div class="eyebrow" style="color:var(--devin)">Built with and run by Devin</div>
+      <h2 style="margin-top:8px">Containing is fast. Fixing is engineering.</h2>
+      <p class="sub" style="margin-bottom:18px">Night Watch never tells Devin the answer. It gives Devin what a senior engineer would want:
+        the exact request, the invariant it broke, the function that served it, and a regression test replayed from the real attack
+        that fails today. Devin finds the root cause, fixes it, and the PR only goes green when that test passes.</p>
+      <div class="grid3">
+        <div><h4 style="margin:0 0 4px">1. From a live breach</h4><p class="muted" style="margin:0">The console sends the incident to Devin through the Devin API.</p></div>
+        <div><h4 style="margin:0 0 4px">2. From a blocked pull request</h4><p class="muted" style="margin:0">The GitHub check calls Devin itself to review the PR and pin the protections it tried to remove.</p></div>
+        <div><h4 style="margin:0 0 4px">3. Building Night Watch</h4><p class="muted" style="margin:0">Devin built the config-tamper detector and fixed the original backdoor in reviewed PRs.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="stats">
+      <div class="card stat"><b class="grad">&lt;1 ms</b><span>Night Watch decision time per request</span></div>
+      <div class="card stat"><b>0</b><span>false positives on a normal day</span></div>
+      <div class="card stat"><b>8</b><span>real attacks you can run from a terminal</span></div>
+      <div class="card stat"><b>0</b><span>dependencies: Python standard library only</span></div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Night Watch, The CIS Sprint x Devin, red track.</span>
+    <span>Oasis Bank and every customer in it are fictional.</span>
+  </footer>
+</div>
+</body>
+</html>

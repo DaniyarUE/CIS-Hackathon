@@ -1,5 +1,26 @@
 # How Night Watch uses Devin
 
+Night Watch contains an attack in about a tenth of a millisecond. Fixing the root cause is careful
+engineering work. That part goes to Devin, in three real ways:
+
+1. **Live breach to Devin (console).** When a ledger invariant breaks (run `python3 attacks/run.py bola`),
+   Night Watch writes an evidence-only task and a regression test replayed from the real attack, which
+   fails on today's code. Click **Send fix to Devin**. Devin must find and fix the root cause in
+   `oasis/bank.py`; it is not told what the bug is. Code: `nightwatch/guard.py` (`_devin_task`,
+   `_regression_test`), `nightwatch/devin.py`.
+2. **Blocked pull request to Devin (GitHub Actions).** The AST code guard fails a PR that weakens a
+   protection and `nightwatch/devin_ci.py` calls the Devin API from the Action: Devin posts a verdict on
+   each finding and opens a PR with tests that pin those protections. Needs the `DEVIN_API_KEY`
+   repository secret.
+3. **Built with Devin.** PR #1 (backdoor remediation), PR #2 (config-tamper detector) and PR #3
+   (follow-ups) in DaniyarUE/CIS-Hackathon were written by Devin and reviewed before merging.
+
+The prompts used for the v1 work are kept below for reference.
+
+---
+
+## v1 reference
+
 Night Watch is fast and narrow: it contains an attack in under a millisecond.
 Fixing the root cause is slow, careful engineering work. That part goes to Devin.
 
