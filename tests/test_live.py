@@ -22,6 +22,18 @@ def g():
     return Guard(Bank(), Memory.load(None))
 
 
+class PreFixBank(Bank):
+    """Oasis Bank as it was before INC-0014: debits were never checked against the account owner.
+    Keeps Night Watch's breach -> reverse -> virtual patch -> Devin path tested now the real bank is fixed."""
+    def _authorize_debit(self, principal, acc):
+        pass
+
+
+@pytest.fixture
+def vulnerable():
+    return Guard(PreFixBank(), Memory.load(None))
+
+
 def at(h, m=0):
     return DAY.replace(hour=h, minute=m)
 
@@ -78,7 +90,8 @@ def test_credential_stuffing_blocks_the_ip(g):
     assert "203.0.113.140" in g.memory.blocked_ips
 
 
-def test_bola_breach_is_reversed_patched_and_handed_to_devin(g, tmp_path):
+def test_bola_breach_is_reversed_patched_and_handed_to_devin(vulnerable, tmp_path):
+    g = vulnerable
     victim = g.bank.customers["C005"]["accounts"][0]
     before = g.bank.accounts[victim]["balance"]
     _, tok, _ = login(g, "C012", when=at(21))
