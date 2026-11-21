@@ -15,7 +15,7 @@ from .models import Event, Signal
 
 DEVIN_API = os.environ.get("DEVIN_API_URL", "https://api.devin.ai/v1/sessions")
 # Where the vulnerable service actually lives. In the demo it is demo_bank/ in this repo.
-TARGET_REPO = os.environ.get("NW_TARGET_REPO", "github.com/Saif-616/CIS-Hackathon")
+TARGET_REPO = os.environ.get("NW_TARGET_REPO", "github.com/DaniyarUE/CIS-Hackathon")
 TARGET_FILE = os.environ.get("NW_TARGET_FILE", "demo_bank/payments/transfer.py")
 
 
