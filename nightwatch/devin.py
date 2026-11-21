@@ -13,23 +13,26 @@ import urllib.request
 
 from .models import Event, Signal
 
-DEVIN_API = os.environ.get("DEVIN_API_URL", "https://api.devin.ai/v1/sessions")
+DEVIN_API = "https://api.devin.ai/v1/sessions"
 # Where the vulnerable service actually lives. In the demo it is demo_bank/ in this repo.
-TARGET_REPO = os.environ.get("NW_TARGET_REPO", "github.com/DaniyarUE/CIS-Hackathon")
-TARGET_FILE = os.environ.get("NW_TARGET_FILE", "demo_bank/payments/transfer.py")
+# Overrides are read at call time so a .env loaded after import still applies.
+TARGET_REPO = "github.com/DaniyarUE/CIS-Hackathon"
+TARGET_FILE = "demo_bank/payments/transfer.py"
 
 
 def build_fix_task(event: Event, signals: list[Signal]) -> str:
     findings = "\n".join(f"- {s.code}: {s.reason}" + (f"\n    line: {s.evidence}" if s.evidence else "")
                          for s in signals if s.evidence or s.code in {"UNREVIEWED_PUSH"})
+    target_repo = os.environ.get("NW_TARGET_REPO", TARGET_REPO)
+    target_file = os.environ.get("NW_TARGET_FILE", TARGET_FILE)
     return (
         f"Night Watch blocked commit {event.id} to {event.target} by {event.identity_id}.\n"
-        f"Repository: {TARGET_REPO} (branch main). The malicious code is live in {TARGET_FILE}.\n"
+        f"Repository: {target_repo} (branch main). The malicious code is live in {target_file}.\n"
         "This is a hackathon demo: the service, the PayLink secret and the hosts are fictional, "
         "so no real key needs rotating and no history rewrite or force-push is wanted.\n\n"
         f"Findings:\n{findings}\n\n"
         "Please:\n"
-        f"1. In {TARGET_FILE}, remove the hard-coded IBAN bypass, the hard-coded secret and the "
+        f"1. In {target_file}, remove the hard-coded IBAN bypass, the hard-coded secret and the "
         "outbound net.post call. Restore, before rail.send(req): the daily limit check "
         "(raise LimitExceeded), aml.screen(req.payee_iban) and audit.log(\"transfer\", req.id, req.amount).\n"
         "2. Read any partner secret from an environment variable instead of the code.\n"
@@ -49,7 +52,7 @@ def send_to_devin(task: str, timeout: float = 10) -> dict:
     if not key:
         return {"status": "dry_run", "task": task}
     req = urllib.request.Request(
-        DEVIN_API, method="POST",
+        os.environ.get("DEVIN_API_URL", DEVIN_API), method="POST",
         data=json.dumps({"prompt": task, "title": "Night Watch: remediate blocked commit",
                          "tags": ["night-watch", "security"]}).encode(),
         headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},

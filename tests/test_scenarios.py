@@ -84,3 +84,10 @@ def test_config_false_positive_release_clears_rollback():
     assert "payments.daily_limit_enforced" not in nw.config_rollbacks
     assert nw.ledger.rolled_back_controls == 1
     assert not nw.state["ops-admin"].revoked
+
+
+def test_devin_task_target_overrides_read_at_call_time(monkeypatch):
+    monkeypatch.setenv("NW_TARGET_REPO", "github.com/acme/bank")
+    monkeypatch.setenv("NW_TARGET_FILE", "svc/transfer.py")
+    _, ds = run("commit")
+    assert "github.com/acme/bank" in ds[0].fix_task and "svc/transfer.py" in ds[0].fix_task
