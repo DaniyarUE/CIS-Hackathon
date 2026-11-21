@@ -350,6 +350,11 @@ class Guard:
         if breaches:
             self._breach(c, v, breaches, resp)
             return 403
+        if c.kind in ("transfer", "payout") and status >= 400:
+            v.steps = [f"Below Night Watch's risk threshold, so it went to the bank, and the bank refused it "
+                       f"itself: HTTP {status} {resp.get('error', '')}.",
+                       "The bank's own controls held. Nothing to contain."]
+            return status
         self.stats["allowed"] += 1
         if c.kind == "transfer" and status == 200 and c.principal:   # online learning
             p = self.profiles[c.principal]

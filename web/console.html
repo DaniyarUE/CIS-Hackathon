@@ -196,9 +196,11 @@ $("atk").addEventListener("click", async (e) => {
 // ---------- feed + detail ----------
 const KIND = { login: "Login", transfer: "Payment", payout: "Partner payout", read: "Read" };
 function evRow(v) {
-  const top = v.breach ? "Ledger invariant broken: " + v.breach.invariants.join(", ") : (v.signals[0] ? v.signals[0].reason : "Matches this customer's normal behaviour.");
+  const bankNo = v.action === "ALLOW" && v.status >= 400 && (v.kind === "transfer" || v.kind === "payout");
+  const top = v.breach ? "Ledger invariant broken: " + v.breach.invariants.join(", ") : bankNo ? "Refused by the bank itself: " + ((v.steps[0] || "").split("itself: ")[1] || v.status) : (v.signals[0] ? v.signals[0].reason : "Matches this customer's normal behaviour.");
+  const label = bankNo ? "BANK " + v.status : v.action;
   return `<div class="ev ${sel === v.id ? "sel" : ""}" data-id="${v.id}">
-    <span class="t">${esc(v.ts.slice(11, 16))}</span><span class="pill ${v.action}">${v.action}</span>
+    <span class="t">${esc(v.ts.slice(11, 16))}</span><span class="pill ${bankNo ? "" : v.action}">${esc(label)}</span>
     <div class="what"><b>${esc(KIND[v.kind] || v.kind)}</b> <span class="dim mono">${esc(v.principal || "?")}</span> <span class="dim">${esc(v.path.replace("/bank", ""))}</span><div>${esc(top)}</div></div>
     <span class="amt">${v.amount ? aed(v.amount) : ""}<small>${v.status} · ${v.latency_ms} ms</small></span></div>`;
 }
