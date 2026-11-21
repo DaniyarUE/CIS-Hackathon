@@ -24,7 +24,8 @@ jobs:
         run: python -m pytest -q
       - name: Night Watch code guard (AST)
         id: scan
-        if: github.event_name == 'pull_request'
+        # run even if a test failed: a backdoor often breaks tests too, and we still want the report
+        if: always() && github.event_name == 'pull_request'
         run: python -m nightwatch.scan --base "origin/${{ github.base_ref }}" --json nw.json --md nw.md
       - name: Post the guard report on the PR
         if: always() && github.event_name == 'pull_request' && hashFiles('nw.md') != ''
@@ -35,7 +36,7 @@ jobs:
             await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body });
       - name: Hand the blocked PR to Devin
         # never on Devin's own PRs (no loops); secrets are not available to PRs from forks anyway
-        if: failure() && steps.scan.outcome == 'failure' && !startsWith(github.head_ref, 'devin/')
+        if: always() && steps.scan.outcome == 'failure' && !startsWith(github.head_ref, 'devin/')
         env:
           DEVIN_API_KEY: ${{ secrets.DEVIN_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
