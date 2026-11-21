@@ -107,8 +107,21 @@ class Bank:
                 return p
         raise BankError(401, "bad API key")
 
+    def _authorize_debit(self, principal: str, acc: dict) -> None:
+        if acc["owner"] != principal:
+            raise BankError(403, "not your account")
+
+    def owned_account(self, s: Session, account_no) -> dict:
+        """Look up an account the client named, refusing anything the session's customer does not own."""
+        acc = self.accounts.get(str(account_no))
+        if not acc:
+            raise BankError(403, "not your account")
+        self._authorize_debit(s.customer_id, acc)
+        return acc
+
     def _move(self, route: str, principal: str, from_acc: dict, to_iban: str, amount: float,
               reference: str, now: datetime, **meta) -> JournalEntry:
+        self._authorize_debit(principal, from_acc)
         if from_acc["balance"] < amount:
             raise BankError(422, "insufficient funds")
         from_acc["balance"] = round(from_acc["balance"] - amount, 2)
@@ -163,9 +176,7 @@ class Bank:
 
     def statement(self, headers, body, now):
         s = self.session_for(headers)
-        acc = self.accounts.get(str(body.get("account", "")))
-        if not acc or acc["owner"] != s.customer_id:
-            raise BankError(403, "not your account")
+        acc = self.owned_account(s, body.get("account", ""))
         lines = [e.to_dict() for e in self.journal if e.from_account == acc["account_no"]]
         return {"account": acc["account_no"], "balance": acc["balance"], "lines": lines[-50:]}
 
@@ -187,7 +198,7 @@ class Bank:
     def transfer_v2(self, headers, body, now):
         """New mobile API (v2): lets customers with several accounts choose which one to pay from."""
         s = self.session_for(headers)
-        acc = self.accounts[str(body["from_account"])]
+        acc = self.owned_account(s, body["from_account"])
         amount = float(body["amount"])
         to_iban = str(body["to_iban"]).replace(" ", "").upper()
         if amount <= 0:
