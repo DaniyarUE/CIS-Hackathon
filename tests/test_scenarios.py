@@ -74,3 +74,10 @@ def test_normal_config_change_is_allowed():
                          new_value="550000", reviewed=True, description="Raise wire limit by 10%"))
     assert d.action is Action.ALLOW
     assert not d.signals
+
+
+def test_config_false_positive_release_clears_rollback():
+    nw, ds = run("config")
+    nw.respond(ds[0].event.id, confirmed_attack=False)
+    assert "payments.daily_limit_enforced" not in nw.config_rollbacks
+    assert not nw.state["ops-admin"].revoked

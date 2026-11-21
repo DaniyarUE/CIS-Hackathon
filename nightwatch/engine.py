@@ -160,6 +160,8 @@ class NightWatch:
             if e.malicious:
                 led.lost_aed += e.amount
             self.quarantined_commits.discard(e.id)
+            if e.kind == "config_change":
+                self.config_rollbacks.pop(e.target, None)
             return ["Marked as false positive. Released and restored access.",
                     f"Learned this pattern as normal for {ident.name}."]
 
