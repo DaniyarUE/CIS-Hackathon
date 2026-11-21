@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Night Watch login</title>
 <link rel="icon" href="/static/favicon.svg">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/nw.css">
 <style>
   .center { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
   .box { width: 100%; max-width: 420px; }
   .box .card { padding: 30px; }
-  h1 { font-size: 24px; margin: 18px 0 4px; letter-spacing: -.5px; }
-  label { display: block; font-size: 12px; color: var(--muted); margin: 16px 0 6px; font-weight: 600; }
+  h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -.03em; font-weight: 600; }
+  label { display: block; font-size: 11px; color: var(--dim); margin: 18px 0 6px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; }
   .err { color: var(--bad); font-size: 13px; min-height: 20px; margin-top: 12px; }
   .note { font-size: 12px; color: var(--dim); margin-top: 18px; line-height: 1.6; }
   button.btn { width: 100%; justify-content: center; margin-top: 20px; padding: 13px; }
@@ -20,8 +20,8 @@
 </head>
 <body>
 <div class="center"><div class="box">
-  <a class="brand" href="/"><img src="/static/favicon.svg" alt=""><span class="logo">Night <span>Watch</span></span></a>
-  <div class="card" style="margin-top:18px">
+  <a class="brand" href="/"><img src="/static/favicon.svg" alt=""><span class="logo">Night Watch</span></a>
+  <div class="card" style="margin-top:20px">
     <h1>Security team sign in</h1>
     <div class="muted">Oasis Bank security operations</div>
     <form id="f" autocomplete="on">
