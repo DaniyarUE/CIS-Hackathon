@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Night Watch</title>
+<style>
+  :root {
+    --bg: #0b0e14; --panel: #121722; --panel2: #171d2b; --line: #232b3d;
+    --text: #e6e9f0; --muted: #8b93a7; --accent: #7c8cff;
+    --ok: #3ecf8e; --warn: #f5b84a; --bad: #ff5d6c; --devin: #31c6c6;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+  header { display: flex; align-items: center; gap: 16px; padding: 14px 24px; border-bottom: 1px solid var(--line); }
+  .logo { font-weight: 700; font-size: 20px; letter-spacing: .3px; }
+  .logo span { color: var(--accent); }
+  .tag { color: var(--muted); }
+  .clock { margin-left: auto; font: 600 22px var(--mono); color: var(--accent); }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 24px; }
+  button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--line);
+           background: var(--panel2); color: var(--text); padding: 8px 14px; }
+  button:hover { border-color: var(--accent); }
+  button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button:disabled { opacity: .5; cursor: default; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 0 24px 14px; }
+  .kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; }
+  .kpi .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .6px; }
+  .kpi .value { font: 700 24px var(--mono); margin-top: 4px; }
+  .kpi .sub { color: var(--muted); font-size: 12px; }
+  .bad { color: var(--bad); } .ok { color: var(--ok); } .warn { color: var(--warn); }
+  main { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 14px; padding: 0 24px 24px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+  .panel h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); }
+  #feed { display: flex; flex-direction: column; gap: 8px; max-height: 64vh; overflow: auto; }
+  .ev { display: grid; grid-template-columns: 54px 1fr auto; gap: 10px; align-items: center; padding: 10px 12px;
+        background: var(--panel2); border: 1px solid var(--line); border-left: 4px solid var(--ok);
+        border-radius: 8px; cursor: pointer; animation: in .25s ease-out; }
+  .ev.CONTAIN { border-left-color: var(--warn); } .ev.BLOCK { border-left-color: var(--bad); }
+  .ev.sel { outline: 1px solid var(--accent); }
+  .ev time { font: 12px var(--mono); color: var(--muted); }
+  .ev .desc { overflow: hidden; text-overflow: ellipsis; }
+  .ev .meta { font-size: 12px; color: var(--muted); }
+  .badge { font: 700 11px var(--mono); padding: 3px 8px; border-radius: 6px; }
+  .badge.ALLOW { background: #173b2c; color: var(--ok); } .badge.CONTAIN { background: #3d3016; color: var(--warn); }
+  .badge.BLOCK { background: #45161d; color: var(--bad); }
+  .score { height: 4px; background: var(--line); border-radius: 2px; margin-top: 6px; }
+  .score i { display: block; height: 100%; border-radius: 2px; }
+  .right { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .sig { display: grid; grid-template-columns: 40px 1fr; gap: 8px; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+  .sig b { font: 700 13px var(--mono); color: var(--bad); }
+  .sig code { display: block; font: 12px var(--mono); color: var(--warn); margin-top: 2px; word-break: break-all; }
+  .sig .c { font: 600 11px var(--mono); color: var(--muted); }
+  ol.play { margin: 6px 0 0; padding-left: 20px; } ol.play li { margin: 3px 0; animation: in .3s ease-out both; }
+  .explain { color: var(--muted); margin-bottom: 8px; }
+  pre.diff { font: 12px/1.5 var(--mono); background: #0d111a; border: 1px solid var(--line); border-radius: 8px;
+             padding: 10px; overflow: auto; margin: 8px 0 0; }
+  pre.diff .a { color: var(--ok); } pre.diff .r { color: var(--bad); }
+  pre.diff .flag { background: rgba(255, 93, 108, .18); outline: 1px solid rgba(255,93,108,.5); }
+  #pager { display: none; border-color: var(--bad); box-shadow: 0 0 0 1px var(--bad), 0 0 30px rgba(255,93,108,.25); }
+  #pager .t { font-weight: 700; font-size: 16px; }
+  #pager .btns { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  #pager .yes { background: var(--bad); border-color: var(--bad); color: #fff; }
+  #devin { display: none; border-color: var(--devin); }
+  #devin h2 { color: var(--devin); }
+  #devin pre { white-space: pre-wrap; font: 12px/1.5 var(--mono); background: #0d1a1a; border: 1px solid #1d4444;
+               border-radius: 8px; padding: 10px; margin: 8px 0; max-height: 220px; overflow: auto; }
+  .pulse { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--devin);
+           margin-right: 6px; animation: pulse 1.2s infinite; }
+  .empty { color: var(--muted); }
+  @keyframes in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+  @keyframes pulse { 50% { opacity: .2; } }
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; } .kpis { grid-template-columns: repeat(2, 1fr); }
+    header, .bar, .kpis, main { padding-left: 16px; padding-right: 16px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="logo">Night <span>Watch</span></div>
+    <div class="tag">Autonomous defense for the bank's code, data and payment rails</div>
+  </div>
+  <div class="clock" id="clock">--:--:--</div>
+</header>
+
+<div class="bar" id="scenarios"></div>
+
+<section class="kpis">
+  <div class="kpi"><div class="label">At risk without Night Watch</div>
+    <div class="value bad" id="k-risk">-</div><div class="sub" id="k-risk-sub">pick a scenario</div></div>
+  <div class="kpi"><div class="label">Protected</div>
+    <div class="value ok" id="k-prot">AED 0</div><div class="sub" id="k-prot-sub">0 records</div></div>
+  <div class="kpi"><div class="label">Held, awaiting human</div>
+    <div class="value warn" id="k-held">AED 0</div><div class="sub" id="k-held-sub">0 deploys blocked</div></div>
+  <div class="kpi"><div class="label">Time to contain</div>
+    <div class="value" id="k-lat">-</div><div class="sub">detect + decide + act</div></div>
+</section>
+
+<main>
+  <section class="panel">
+    <h2>Live telemetry</h2>
+    <div id="feed"><div class="empty">Pick a scenario above to replay it in real time.</div></div>
+  </section>
+  <div class="right">
+    <section class="panel" id="pager">
+      <h2>Page to on-call engineer</h2>
+      <div class="t" id="p-title"></div>
+      <div id="p-body"></div>
+      <div class="btns"><button class="yes" id="p-yes"></button><button id="p-no"></button></div>
+      <div id="p-result"></div>
+    </section>
+    <section class="panel" id="devin">
+      <h2><span class="pulse"></span>Devin: autonomous remediation</h2>
+      <div id="d-status"></div>
+      <pre id="d-task"></pre>
+    </section>
+    <section class="panel">
+      <h2>Why Night Watch decided this</h2>
+      <div id="detail" class="empty">Click any event to see its reasoning.</div>
+    </section>
+  </div>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const aed = (n) => "AED " + Math.round(n).toLocaleString("en-US");
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const ICON = { api_call: "API", commit: "GIT", deploy: "CI", db_query: "DB" };
+let source = null, decisions = {}, latencies = [], atRisk = null, pending = null;
+
+async function loadScenarios() {
+  const list = await (await fetch("/api/scenarios")).json();
+  $("scenarios").innerHTML = list.map((s) => `<button data-id="${s.id}">${esc(s.name)}</button>`).join("");
+  $("scenarios").querySelectorAll("button").forEach((b) => (b.onclick = () => run(b.dataset.id, b)));
+}
+
+function reset() {
+  decisions = {}; latencies = []; pending = null;
+  $("feed").innerHTML = ""; $("pager").style.display = "none"; $("devin").style.display = "none";
+  $("detail").className = "empty"; $("detail").textContent = "Click any event to see its reasoning.";
+  $("k-lat").textContent = "-"; totals({ protected_aed: 0, held_aed: 0, protected_rows: 0, blocked_deploys: 0 });
+}
+
+function run(id, btn) {
+  if (source) source.close();
+  document.querySelectorAll("#scenarios button").forEach((b) => b.classList.toggle("active", b === btn));
+  reset();
+  source = new EventSource("/api/run?scenario=" + id);
+  source.addEventListener("start", (m) => {
+    atRisk = JSON.parse(m.data).at_risk;
+    const parts = [];
+    if (atRisk.rows) parts.push(atRisk.rows.toLocaleString("en-US") + " customer records");
+    if (atRisk.deploys) parts.push("backdoor in production");
+    $("k-risk").textContent = atRisk.aed ? aed(atRisk.aed) : (atRisk.rows ? (atRisk.rows / 1e6).toFixed(1) + "M rows" : (atRisk.deploys ? "1 backdoor" : "AED 0"));
+    $("k-risk-sub").textContent = parts.join(", ") || (atRisk.aed ? "drained to an offshore wallet" : "nothing malicious");
+  });
+  source.addEventListener("decision", (m) => onDecision(JSON.parse(m.data)));
+  source.addEventListener("devin", (m) => onDevin(JSON.parse(m.data)));
+  source.addEventListener("done", () => source.close());
+}
+
+function totals(t) {
+  const rows = (t.protected_rows || 0).toLocaleString("en-US") + " customer records";
+  $("k-prot").textContent = !t.protected_aed && t.protected_rows ? (t.protected_rows / 1e6).toFixed(1) + "M rows" : aed(t.protected_aed);
+  $("k-prot-sub").textContent = t.protected_rows ? rows + " never left" : "never left the bank";
+  $("k-held").textContent = aed(t.held_aed);
+  $("k-held-sub").textContent = (t.blocked_deploys || 0) + " deploys blocked";
+}
+
+function onDecision({ decision: d, totals: t, prompt }) {
+  decisions[d.event_id] = d;
+  $("clock").textContent = d.ts.slice(11, 19);
+  latencies.push(d.latency_ms);
+  if (d.action !== "ALLOW") $("k-lat").textContent = d.latency_ms.toFixed(2) + " ms";
+  const col = d.action === "BLOCK" ? "var(--bad)" : d.action === "CONTAIN" ? "var(--warn)" : "var(--ok)";
+  const el = document.createElement("div");
+  el.className = "ev " + d.action;
+  el.innerHTML = `<div><b>${ICON[d.kind] || "EV"}</b><br><time>${d.ts.slice(11, 19)}</time></div>
+    <div style="min-width:0"><div class="desc">${esc(d.description)}</div>
+      <div class="meta">${esc(d.identity)} · ${esc(d.network || "")} · risk ${d.score}/100</div>
+      <div class="score"><i style="width:${d.score}%;background:${col}"></i></div></div>
+    <span class="badge ${d.action}">${d.action}</span>`;
+  el.onclick = () => show(d.event_id, el);
+  $("feed").prepend(el);
+  totals(t);
+  if (d.action !== "ALLOW" && (!document.querySelector(".ev.sel") || prompt)) show(d.event_id, el);
+  if (prompt) page(prompt);
+}
+
+function show(id, el) {
+  const d = decisions[id];
+  document.querySelectorAll(".ev").forEach((x) => x.classList.toggle("sel", x === el));
+  const flagged = new Set(d.signals.map((s) => s.evidence).filter(Boolean));
+  let html = `<div class="explain">${esc(d.explanation)}</div>`;
+  if (d.signals.length) {
+    html += d.signals.map((s) => `<div class="sig"><b>+${s.weight}</b><div>${esc(s.reason)} <span class="c">${s.code}</span>
+      ${s.evidence && d.kind === "commit" ? `<code>${esc(s.evidence)}</code>` : ""}</div></div>`).join("");
+  }
+  if (d.diff) {
+    html += `<pre class="diff">${d.diff.split("\n").map((l) => {
+      const body = l.slice(1).trim();
+      const cls = l.startsWith("+") && !l.startsWith("+++") ? "a" : l.startsWith("-") && !l.startsWith("---") ? "r" : "";
+      return `<span class="${cls} ${flagged.has(body) ? "flag" : ""}">${esc(l)}</span>`;
+    }).join("\n")}</pre>`;
+  }
+  if (d.playbook.length) {
+    html += `<h2 style="margin-top:12px">Autonomous response</h2><ol class="play">` +
+      d.playbook.map((p, i) => `<li style="animation-delay:${i * 0.18}s">${esc(p)}</li>`).join("") + "</ol>";
+  }
+  $("detail").className = ""; $("detail").innerHTML = html;
+}
+
+function page(p) {
+  pending = p;
+  $("pager").style.display = "block";
+  $("p-title").textContent = p.title; $("p-body").textContent = p.body;
+  $("p-yes").textContent = p.yes; $("p-no").textContent = p.no; $("p-result").innerHTML = "";
+  $("p-yes").disabled = $("p-no").disabled = false;
+}
+
+async function respond(confirmed) {
+  if (!pending) return;
+  $("p-yes").disabled = $("p-no").disabled = true;
+  const r = await (await fetch("/api/respond", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ event_id: pending.event_id, confirmed }) })).json();
+  $("p-result").innerHTML = `<ol class="play">${r.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>`;
+  totals(r.totals); pending = null;
+}
+$("p-yes").onclick = () => respond(true);
+$("p-no").onclick = () => respond(false);
+
+function onDevin(r) {
+  $("devin").style.display = "block";
+  const st = {
+    sent: `Session opened: <a style="color:var(--devin)" href="${esc(r.session)}" target="_blank">${esc(r.session)}</a>`,
+    dry_run: "Dry run (no DEVIN_API_KEY set). This is the task Night Watch hands to Devin:",
+    error: "Could not reach Devin (" + esc(r.error) + "). Task:",
+  }[r.status];
+  $("d-status").innerHTML = st; $("d-task").textContent = r.task;
+}
+
+loadScenarios();
+</script>
+</body>
+</html>
