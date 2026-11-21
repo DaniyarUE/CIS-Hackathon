@@ -1,0 +1,24 @@
+name: Night Watch
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pytest
+      - name: Unit tests
+        run: python -m pytest -q tests demo_bank/tests
+      - name: Code guard on the bank service diff
+        if: github.event_name == 'pull_request'
+        run: |
+          git diff "origin/${{ github.base_ref }}...HEAD" -- demo_bank/payments | python -m nightwatch.scan
