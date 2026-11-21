@@ -26,6 +26,10 @@ def demo_identities() -> list[Identity]:
             id="ci-deployer", name="ci-deployer", kind="service_account", owner="Platform team",
             scopes={"deploy"}, usual_networks={"Bank-DC"}, active_hours=(0, 24),
         ),
+        Identity(
+            id="ops-admin", name="ops-admin", kind="engineer", owner="Platform operations",
+            scopes={"config:write"}, usual_networks={"Bank-VPN"}, active_hours=(8, 19),
+        ),
     ]
 
 
@@ -117,9 +121,23 @@ def data_exfil() -> list[tuple[float, Event]]:
     ]
 
 
+def config_tamper() -> list[tuple[float, Event]]:
+    """An insider switches off payment limits in production config just before a cash-out."""
+    return [
+        (1.2, Event(_t(0, 50), "ops-admin", "config_change", target="payments.daily_limit_enforced",
+                    network="AS-ResidentialProxy-BR", old_value="true", new_value="false", reviewed=False,
+                    description="Set payments.daily_limit_enforced: true -> false", malicious=True)),
+        (1.0, Event(_t(0, 51), "ops-admin", "config_change", target="payments.max_wire_aed",
+                    network="AS-ResidentialProxy-BR", old_value="500000", new_value="50000000",
+                    reviewed=False, description="Set payments.max_wire_aed: 500,000 -> 50,000,000",
+                    malicious=True)),
+    ]
+
+
 SCENARIOS = {
     "normal": ("A normal day", normal_night),
     "drain": ("2 AM rail drain (stolen API key)", rail_drain),
     "commit": ("Backdoor commit to payments", poisoned_commit),
     "exfil": ("Customer data exfiltration", data_exfil),
+    "config": ("Insider switches off payment limits", config_tamper),
 }
