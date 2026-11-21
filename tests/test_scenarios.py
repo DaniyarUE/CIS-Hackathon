@@ -91,3 +91,12 @@ def test_devin_task_target_overrides_read_at_call_time(monkeypatch):
     monkeypatch.setenv("NW_TARGET_FILE", "svc/transfer.py")
     _, ds = run("commit")
     assert "github.com/acme/bank" in ds[0].fix_task and "svc/transfer.py" in ds[0].fix_task
+
+
+def test_release_of_rollback_without_old_value_decrements_counter():
+    nw = NightWatch(demo_identities())
+    d = nw.process(Event(datetime(2026, 11, 21, 0, 50), "ops-admin", "config_change", target="audit.enabled",
+                         network="AS-Evil", new_value="false", reviewed=False))
+    assert d.action is Action.BLOCK and nw.ledger.rolled_back_controls == 1
+    nw.respond(d.event.id, confirmed_attack=False)
+    assert nw.ledger.rolled_back_controls == 0 and "audit.enabled" not in nw.config_rollbacks
