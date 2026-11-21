@@ -81,6 +81,8 @@ class NightWatch:
         if "REVOKED" in codes:
             led.protected_aed += e.amount
             led.protected_rows += e.rows
+            if e.kind == "config_change":
+                led.rolled_back_controls += 1
             return [f"Rejected at the gateway: {ident.name} is revoked."], None
 
         self.held[e.id] = e
@@ -132,6 +134,7 @@ class NightWatch:
                         "Paged the on-call security engineer."], None
             st.revoked = True
             self.config_rollbacks[e.target] = e.old_value
+            led.rolled_back_controls += 1
             return [f"Rolled {e.target} back to its last good value ({e.old_value}).",
                     f"Locked {ident.name}'s account and revoked all their sessions and tokens.",
                     "Froze further production config changes until the incident is closed.",
@@ -160,8 +163,8 @@ class NightWatch:
             if e.malicious:
                 led.lost_aed += e.amount
             self.quarantined_commits.discard(e.id)
-            if e.kind == "config_change":
-                self.config_rollbacks.pop(e.target, None)
+            if e.kind == "config_change" and self.config_rollbacks.pop(e.target, None) is not None:
+                led.rolled_back_controls -= 1
             return ["Marked as false positive. Released and restored access.",
                     f"Learned this pattern as normal for {ident.name}."]
 

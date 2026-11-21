@@ -63,6 +63,7 @@ def test_config_tamper_blocked_rolled_back_and_follow_up_refused():
     assert disable.action is Action.BLOCK
     assert "CONTROL_DISABLED" in {s.code for s in disable.signals}
     assert nw.config_rollbacks["payments.daily_limit_enforced"] == "true"
+    assert nw.ledger.rolled_back_controls == 2
     assert nw.state["ops-admin"].revoked
     assert raise_limit.action is Action.BLOCK
     assert {"LIMIT_RAISED", "REVOKED"} <= {s.code for s in raise_limit.signals}
@@ -81,4 +82,5 @@ def test_config_false_positive_release_clears_rollback():
     nw, ds = run("config")
     nw.respond(ds[0].event.id, confirmed_attack=False)
     assert "payments.daily_limit_enforced" not in nw.config_rollbacks
+    assert nw.ledger.rolled_back_controls == 1
     assert not nw.state["ops-admin"].revoked

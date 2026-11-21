@@ -22,7 +22,7 @@ pull request with the fix and a regression test.
                                                   └─► Devin: fix the root cause, open a PR
 ```
 
-## What it stops (the four demo scenarios)
+## What it stops (the five demo scenarios)
 
 | Scenario | What happens | Night Watch response |
 |---|---|---|
@@ -30,6 +30,7 @@ pull request with the fix and a regression test.
 | **2 AM rail drain** | Stolen partner API key from a bulletproof host sends AED 450,000 to a non-custodial wallet, then keeps draining | Blocked on the **first** payment in under 1 ms. Key revoked, partner quarantined, follow-ups refused. AED 512,000 protected |
 | **Backdoor commit** | Phished engineer account pushes to `main` at 01:40: deletes the limit and AML checks, adds a hard-coded IBAN bypass, a secret and an outside POST | Push rejected, commit quarantined, auto-deploy refused, account locked, **fix handed to Devin** |
 | **Data exfiltration** | Leaked analytics credential dumps 2.4M rows of `customers_pii` to an outside bucket | Query killed, credentials revoked, egress blocked, DPO notified. 3.3M records protected |
+| **Config tamper** | Insider `ops-admin` at 00:50 from a new network switches off `payments.daily_limit_enforced`, then raises `payments.max_wire_aed` from AED 500,000 to 50,000,000 | First change blocked and rolled back, account locked, the limit raise refused. 2 controls rolled back |
 
 ## Run it
 
@@ -91,7 +92,7 @@ python3 -m pytest -q tests demo_bank/tests
 | `nightwatch/codescan.py` | Diff analysis: removed safety checks, backdoors, secrets, egress, audit removal |
 | `nightwatch/engine.py` | Scoring, decisions, autonomous playbooks, human confirm or release |
 | `nightwatch/devin.py` | Writes the remediation task and opens the Devin session |
-| `nightwatch/simulator.py` | The four scenarios (all identities, hosts and wallets are fictional) |
+| `nightwatch/simulator.py` | The five scenarios (all identities, hosts and wallets are fictional) |
 | `server.py`, `web/index.html` | Zero-dependency server and live dashboard (Server-Sent Events) |
 | `demo_bank/` | Deliberately vulnerable service for the remediation demo. Never deploy |
 

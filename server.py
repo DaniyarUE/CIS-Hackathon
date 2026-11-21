@@ -113,6 +113,7 @@ class Handler(BaseHTTPRequestHandler):
             "aed": sum(e.amount for _, e in events if e.malicious),
             "rows": sum(e.rows for _, e in events if e.malicious),
             "deploys": sum(1 for _, e in events if e.malicious and e.kind in ("commit", "deploy")),
+            "controls": sum(1 for _, e in events if e.malicious and e.kind == "config_change"),
         }
         try:
             self._sse("start", {"scenario": name, "at_risk": at_risk})

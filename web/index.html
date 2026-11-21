@@ -142,7 +142,7 @@ function reset() {
   decisions = {}; latencies = []; pending = null;
   $("feed").innerHTML = ""; $("pager").style.display = "none"; $("devin").style.display = "none";
   $("detail").className = "empty"; $("detail").textContent = "Click any event to see its reasoning.";
-  $("k-lat").textContent = "-"; totals({ protected_aed: 0, held_aed: 0, protected_rows: 0, blocked_deploys: 0 });
+  $("k-lat").textContent = "-"; totals({ protected_aed: 0, held_aed: 0, protected_rows: 0, blocked_deploys: 0, rolled_back_controls: 0 });
 }
 
 function run(id, btn) {
@@ -155,7 +155,8 @@ function run(id, btn) {
     const parts = [];
     if (atRisk.rows) parts.push(atRisk.rows.toLocaleString("en-US") + " customer records");
     if (atRisk.deploys) parts.push("backdoor in production");
-    $("k-risk").textContent = atRisk.aed ? aed(atRisk.aed) : (atRisk.rows ? (atRisk.rows / 1e6).toFixed(1) + "M rows" : (atRisk.deploys ? "1 backdoor" : "AED 0"));
+    if (atRisk.controls) parts.push("payment limits switched off in production");
+    $("k-risk").textContent = atRisk.aed ? aed(atRisk.aed) : (atRisk.rows ? (atRisk.rows / 1e6).toFixed(1) + "M rows" : (atRisk.deploys ? "1 backdoor" : (atRisk.controls ? plural(atRisk.controls, "control") + " disabled" : "AED 0")));
     $("k-risk-sub").textContent = parts.join(", ") || (atRisk.aed ? "drained to an offshore wallet" : "nothing malicious");
   });
   source.addEventListener("decision", (m) => onDecision(JSON.parse(m.data)));
@@ -163,10 +164,16 @@ function run(id, btn) {
   source.addEventListener("done", () => source.close());
 }
 
+function plural(n, word) {
+  return n + " " + word + (n === 1 ? "" : "s");
+}
+
 function totals(t) {
   const rows = (t.protected_rows || 0).toLocaleString("en-US") + " customer records";
-  $("k-prot").textContent = !t.protected_aed && t.protected_rows ? (t.protected_rows / 1e6).toFixed(1) + "M rows" : aed(t.protected_aed);
-  $("k-prot-sub").textContent = t.protected_rows ? rows + " never left" : "never left the bank";
+  const controlsOnly = !t.protected_aed && !t.protected_rows && t.rolled_back_controls;
+  $("k-prot").textContent = controlsOnly ? plural(t.rolled_back_controls, "control") + " rolled back"
+    : (!t.protected_aed && t.protected_rows ? (t.protected_rows / 1e6).toFixed(1) + "M rows" : aed(t.protected_aed));
+  $("k-prot-sub").textContent = controlsOnly ? "limits and checks restored" : (t.protected_rows ? rows + " never left" : "never left the bank");
   $("k-held").textContent = aed(t.held_aed);
   $("k-held-sub").textContent = (t.blocked_deploys || 0) + " deploys blocked";
 }

@@ -40,7 +40,7 @@ demo_bank/payments/transfer.py in this repo. Fix it:
 6. Open a pull request titled "Remediate backdoor a91f3c2 (found by Night Watch)".
 ```
 
-PR link: _add after Devin opens it_
+PR link: https://github.com/DaniyarUE/CIS-Hackathon/pull/1
 
 ## 3. Built with Devin: a new detector and scenario
 
@@ -72,4 +72,8 @@ Add a new attack type to Night Watch: tampering with payment controls in product
 7. Open a pull request titled "Add config tamper detection (built by Devin)".
 ```
 
-PR link: _add after Devin opens it_
+PR link: https://github.com/DaniyarUE/CIS-Hackathon/pull/2
+
+Devin also fixed the two issues its own Devin Review found on that PR (wire limit raised from 0, rollback kept after a false-positive release).
+
+Follow-up PR (real repo in the Devin task, config KPIs, docs): https://github.com/DaniyarUE/CIS-Hackathon/pull/3
