@@ -23,3 +23,4 @@ class Ledger:
     protected_rows: int = 0
     leaked_rows: int = 0
     blocked_deploys: int = 0
+    rolled_back_controls: int = 0
