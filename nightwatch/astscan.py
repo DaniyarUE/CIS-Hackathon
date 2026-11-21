@@ -7,6 +7,9 @@ For every changed Python file it compares the old and new version function by fu
   RAISE_REMOVED      the function raises fewer errors than before (a refusal path disappeared)
   OWNER_CHECK_GONE   a comparison against an owner / customer / principal disappeared
   LIMIT_CHECK_GONE   a comparison against a limit / balance / threshold disappeared
+  GUARD_WEAKENED     a refusal (`if ...: raise`) still exists but now only fires under an extra
+                     condition: `False and ...`, an env-var kill switch, a feature flag, a wrapper `if`
+  DEAD_GUARD         a refusal can never fire (its condition is a constant false)
   HARDCODED_BYPASS   a new branch keyed on a literal account, IBAN or user id
   SKIP_FLAG          a call passes skip_*/bypass*/verify=False style switches
   SECRET_IN_CODE     a high-entropy literal or known key format assigned in code
@@ -41,7 +44,8 @@ HOST = re.compile(r"https?://([A-Za-z0-9.-]+)")
 
 SEVERITY = {"GUARD_REMOVED": "high", "OWNER_CHECK_GONE": "high", "HARDCODED_BYPASS": "high",
             "SKIP_FLAG": "high", "SECRET_IN_CODE": "high", "NEW_EGRESS": "high", "DANGEROUS_CALL": "high",
-            "SQL_INJECTION": "high", "LIMIT_CHECK_GONE": "high", "RAISE_REMOVED": "medium"}
+            "SQL_INJECTION": "high", "LIMIT_CHECK_GONE": "high", "RAISE_REMOVED": "medium",
+            "GUARD_WEAKENED": "high", "DEAD_GUARD": "high"}
 WEIGHT = {"high": 35, "medium": 15, "low": 5}
 
 
@@ -110,6 +114,49 @@ def _shape(cmp: ast.Compare) -> str:
     return " ".join([part(cmp.left)] + [f"{type(o).__name__} {part(c)}" for o, c in zip(cmp.ops, cmp.comparators)])
 
 
+def _key(node: ast.AST) -> str:
+    return ast.dump(node, annotate_fields=False, include_attributes=False)
+
+
+def _refuses(node: ast.If) -> bool:
+    return any(isinstance(x, ast.Raise) for st in node.body for x in ast.walk(st))
+
+
+def _refusals(fn: ast.AST) -> dict[str, tuple[int, str, list[str]]]:
+    """Every `if <test>: raise` in a function: test fingerprint -> (line, source, enclosing if-tests).
+    An `and` test is split into its parts so `if A and B: raise` is seen as a refusal on A gated by B."""
+    out: dict[str, tuple[int, str, list[str]]] = {}
+
+    def visit(body, gates):
+        for st in body:
+            if isinstance(st, ast.If):
+                if _refuses(st):
+                    parts = st.test.values if isinstance(st.test, ast.BoolOp) and isinstance(st.test.op, ast.And) else [st.test]
+                    keys = [_key(x) for x in parts]
+                    for i, x in enumerate(parts):
+                        others = [k for j, k in enumerate(keys) if j != i]
+                        out.setdefault(_key(x), (st.lineno, ast.unparse(x), gates + others))
+                visit(st.body, gates + [_key(st.test)])
+                visit(st.orelse, gates + ["not " + _key(st.test)])
+            elif isinstance(st, (ast.For, ast.While, ast.With, ast.Try)):
+                for f in ("body", "orelse", "finalbody"):
+                    visit(getattr(st, f, []) or [], gates)
+                for h in getattr(st, "handlers", []) or []:
+                    visit(h.body, gates)
+    visit(getattr(fn, "body", []), [])
+    return out
+
+
+def _falsy(node: ast.AST) -> bool:
+    if isinstance(node, ast.Constant):
+        return not node.value
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not) and isinstance(node.operand, ast.Constant):
+        return bool(node.operand.value)
+    if isinstance(node, ast.BoolOp) and isinstance(node.op, ast.And):
+        return any(_falsy(v) for v in node.values)
+    return False
+
+
 def _facts(fn: ast.AST) -> dict:
     guards: dict[str, int] = {}
     raises, owner_cmps, limit_cmps = 0, {}, {}
@@ -126,7 +173,7 @@ def _facts(fn: ast.AST) -> dict:
                 owner_cmps.setdefault(key, (n.lineno, src))
             elif LIMIT_WORDS.search(src):
                 limit_cmps.setdefault(key, (n.lineno, src))
-    return {"guards": guards, "raises": raises, "owner": owner_cmps, "limit": limit_cmps}
+    return {"guards": guards, "raises": raises, "owner": owner_cmps, "limit": limit_cmps, "refusals": _refusals(fn)}
 
 
 def _literal_bypass(node: ast.If) -> str | None:
@@ -156,6 +203,9 @@ def _module_findings(path: str, tree: ast.AST, new_lines: set[int] | None) -> li
             continue
         ln = getattr(n, "lineno", 0)
         where = fn_at.get(ln, "")
+        if isinstance(n, ast.If) and _refuses(n) and _falsy(n.test):
+            out.append(Finding(path, ln, "DEAD_GUARD", f"This refusal can never fire: `if {ast.unparse(n.test)[:90]}` is always false.",
+                               where, ast.unparse(n.test)[:120]))
         if isinstance(n, ast.If):
             b = _literal_bypass(n)
             if b:
@@ -222,6 +272,14 @@ def scan_change(path: str, old: str | None, new: str | None, new_lines: set[int]
             for key, (ln, cmp) in a["limit"].items():
                 if key not in b["limit"]:
                     out.append(Finding(path, nfn.lineno, "LIMIT_CHECK_GONE", f"`{q}()` lost the limit check `{cmp}`.", q, cmp))
+            for key, (ln, src, gates) in a["refusals"].items():
+                if key in b["refusals"]:
+                    nln, _, ngates = b["refusals"][key]
+                    extra = [g for g in ngates if g not in gates]
+                    if extra:
+                        cond = next((ast.unparse(x) for x in ast.walk(nfn) if isinstance(x, ast.expr) and _key(x) == extra[0].removeprefix("not ")), "a new condition")
+                        out.append(Finding(path, nln, "GUARD_WEAKENED", f"`{q}()` still has the refusal `if {src[:80]}`, but it now "
+                                           f"only fires when `{cond[:80]}` also holds: a kill switch or bypass.", q, cond[:120]))
             if b["raises"] < a["raises"]:
                 out.append(Finding(path, nfn.lineno, "RAISE_REMOVED", f"`{q}()` raises {a['raises'] - b['raises']} fewer "
                                    "error(s) than before: a refusal path is gone.", q))

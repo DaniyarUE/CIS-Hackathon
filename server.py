@@ -92,6 +92,8 @@ _HASH = _pw(_ADMIN_PW, _SALT)
 _sessions: dict[str, dict] = {}                 # cookie -> {user, csrf, expires}
 _fails: dict[str, deque] = defaultdict(lambda: deque(maxlen=20))
 SESSION_TTL = 8 * 3600
+SECURE_COOKIE = "; Secure" if os.environ.get("NW_HTTPS") == "1" else ""   # set when served over HTTPS
+_attack_lock = threading.Lock()                  # one attack script at a time: no process flood
 
 
 def _login_locked(ip: str) -> bool:
@@ -161,8 +163,11 @@ class Handler(BaseHTTPRequestHandler):
         return datetime.now()
 
     def _body(self) -> dict | None:
-        n = int(self.headers.get("Content-Length") or 0)
-        if n > MAX_BODY:
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            return None
+        if n < 0 or n > MAX_BODY:      # a negative length would make read() wait for EOF forever
             return None
         raw = self.rfile.read(n) if n else b"{}"
         try:
@@ -247,7 +252,7 @@ class Handler(BaseHTTPRequestHandler):
             s = self._session()
             if s:
                 _sessions.pop(s["id"], None)
-            return self._json({"ok": True}, extra={"Set-Cookie": "nw_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict"})
+            return self._json({"ok": True}, extra={"Set-Cookie": "nw_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict" + SECURE_COOKIE})
         if p == "/api/respond":  # original replay dashboard
             if not self._authed_api():
                 return
@@ -287,6 +292,15 @@ class Handler(BaseHTTPRequestHandler):
         env = {**os.environ, "NW_URL": f"http://127.0.0.1:{self.server.server_address[1]}", "ATTACK_PAUSE": "0.6",
                "PYTHONUNBUFFERED": "1"}
         env.pop("DEVIN_API_KEY", None)
+        env.pop("NW_ADMIN_PASSWORD", None)
+        if not _attack_lock.acquire(blocking=False):
+            return self._json({"error": "another attack is still running"}, 429)
+        try:
+            self._run_attack(subprocess, sys, name, env)
+        finally:
+            _attack_lock.release()
+
+    def _run_attack(self, subprocess, sys, name: str, env: dict) -> None:
         proc = subprocess.Popen([sys.executable, str(ROOT / "attacks" / "run.py"), name], stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, text=True, env=env)
         self._sse_headers()
@@ -295,7 +309,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._sse("line", {"text": line.rstrip()})
             proc.wait(timeout=60)
             self._sse("done", {"code": proc.returncode})
-        except (BrokenPipeError, ConnectionResetError, OSError):
+        except (BrokenPipeError, ConnectionResetError, OSError, subprocess.TimeoutExpired):
             proc.kill()
 
     # ---------- the bank, behind Night Watch ----------
@@ -320,7 +334,7 @@ class Handler(BaseHTTPRequestHandler):
         sid = secrets.token_urlsafe(32)
         _sessions[sid] = {"id": sid, "user": user, "csrf": secrets.token_urlsafe(24),
                           "expires": time.time() + SESSION_TTL}
-        cookie = f"nw_session={sid}; Path=/; Max-Age={SESSION_TTL}; HttpOnly; SameSite=Strict"
+        cookie = f"nw_session={sid}; Path=/; Max-Age={SESSION_TTL}; HttpOnly; SameSite=Strict{SECURE_COOKIE}"
         self._json({"ok": True}, extra={"Set-Cookie": cookie})
 
     # ---------- server-sent events ----------

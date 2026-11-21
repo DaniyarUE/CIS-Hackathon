@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from statistics import median
 
 OUTGOING = {"transfer_out", "bill"}
@@ -22,6 +22,9 @@ def _pct(values: list[float], q: float) -> float:
     return v[lo] + (v[hi] - v[lo]) * (k - lo)
 
 
+COOLING = timedelta(hours=24)
+
+
 @dataclass
 class Profile:
     customer_id: str
@@ -31,12 +34,16 @@ class Profile:
     devices: Counter = field(default_factory=Counter)
     countries: Counter = field(default_factory=Counter)
     daily_counts: Counter = field(default_factory=Counter)    # date -> outgoing payments
+    cooling: dict = field(default_factory=dict)               # new IBAN -> first paid; trusted only after COOLING
     events: int = 0
     learned_from: int = 0                                     # rows of history used
 
     # ---- learning ----
     def observe(self, ts: datetime, amount: float, payee: str, device: str, country: str,
-                outgoing: bool = True) -> None:
+                outgoing: bool = True, trust_payee: bool = True) -> None:
+        """trust_payee=False for live traffic: a payee first paid today stays 'new' for COOLING
+        (or until an analyst releases it), so an attacker can't make a mule look known by
+        sending one small payment first."""
         self.events += 1
         self.hours[ts.hour] += 1
         if device:
@@ -45,8 +52,13 @@ class Profile:
             self.countries[country] += 1
         if outgoing:
             self.amounts.append(amount)
-            if payee:
+            if payee and (trust_payee or payee in self.payees):
                 self.payees[payee] += 1
+            elif payee:
+                first = self.cooling.setdefault(payee, ts)
+                if ts - first >= COOLING:
+                    self.payees[payee] += 1
+                    self.cooling.pop(payee, None)
             self.daily_counts[ts.date().isoformat()] += 1
 
     # ---- what the profile says ----
